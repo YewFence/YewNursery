@@ -130,15 +130,26 @@ if ($Asset.name -match "\.(zip|7z)$") {
             $Content = Open-Zip $TempFile
             # Simple heuristic: find .exe
             $Exes = $Content | Where-Object { $_.Name -match "\.exe$" }
+            Write-Host "Found $($Exes.Count) EXEs in archive."
+
             if ($Exes.Count -eq 1) {
                 $Bin = $Exes[0].Name
             }
             elseif ($Exes.Count -gt 1) {
-                # Try to match repo name
+                # 1. Try exact/regex match with Repo name
                 $Match = $Exes | Where-Object { $_.Name -match "$Repo" } | Select-Object -First 1
+                
+                # 2. Try loose match (ignoring hyphens/underscores)
+                if (-not $Match) {
+                    $RepoClean = $Repo -replace "[-_]", ""
+                    $Match = $Exes | Where-Object { 
+                        ($_.Name -replace "[-_]", "") -match $RepoClean 
+                    } | Select-Object -First 1
+                }
+
                 if ($Match) { $Bin = $Match.Name }
             }
-
+            
             # Check for root folder
             $Roots = $Content | Where-Object { $_.FullName -match "^[^/]+/$" }
             # This is tricky with .NET ZipFile, let's skip complex extract_dir logic for now
