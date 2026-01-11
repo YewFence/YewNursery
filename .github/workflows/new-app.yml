@@ -7,6 +7,11 @@ on:
         description: 'GitHub Repository URL (e.g. https://github.com/owner/repo)'
         required: true
         type: string
+      create_shortcut:
+        description: 'Create Start Menu Shortcut'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,7 +29,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./scripts/new-app.ps1 -GitHubUrl "${{ inputs.repo_url }}"
+          ./scripts/new-app.ps1 -GitHubUrl "${{ inputs.repo_url }}" -CreateShortcut:${{ inputs.create_shortcut }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5

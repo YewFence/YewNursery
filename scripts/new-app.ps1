@@ -1,7 +1,8 @@
 # scripts/new-app.ps1
 param (
     [Parameter(Mandatory = $true)]
-    [string]$GitHubUrl
+    [string]$GitHubUrl,
+    [switch]$CreateShortcut
 )
 
 # Set up error handling
@@ -141,6 +142,10 @@ $Manifest = [ordered]@{
 if ($Bin) { $Manifest["bin"] = $Bin }
 if ($ExtractDir) { $Manifest["extract_dir"] = $ExtractDir }
 
+if ($CreateShortcut -and $Bin) {
+    $Manifest["shortcuts"] = @( , @($Bin, $Repo) )
+}
+
 $Manifest["checkver"] = "github"
 
 # Autoupdate logic
@@ -183,7 +188,7 @@ $Report = @"
 | `architecture.64bit` | ✅ Detected | `$($Asset.name)` |
 | `hash` | ✅ Calculated | `$Hash` |
 | `bin` | $(if ($Bin) { "⚠️ Suggested" } else { "⭕ Missing" }) | $(if ($Bin) { "`$Bin` (Please Verify)" } else { "Please fill manually" }) |
-| `shortcuts` | ⭕ Missing | Please fill manually if needed |
+| `shortcuts` | $(if ($CreateShortcut -and $Bin) { "✅ Generated" } else { "⭕ Missing" }) | $(if ($CreateShortcut -and $Bin) { "Included" } else { "Please fill manually if needed" }) |
 | `persist` | ⭕ Missing | Please fill manually if needed |
 | `checkver` | ✅ Configured | `github` |
 | `autoupdate` | ⚠️ Suggested | URL pattern generated |
@@ -191,7 +196,7 @@ $Report = @"
 ### Action Required
 1. Verify `bin` executable name.
 2. Check if `extract_dir` is needed (nested folders in zip).
-3. Add `shortcuts` if this is a GUI app.
+3. $(if ($CreateShortcut -and $Bin) { "Verify generated shortcuts." } else { "Add `shortcuts` if this is a GUI app." })
 4. Add `persist` if the app creates config files in its directory.
 
 "@
