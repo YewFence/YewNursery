@@ -137,15 +137,29 @@ if ($Asset.name -match "\.(zip|7z)$") {
                 $Bin = $Exes[0].Name
             }
             elseif ($Exes.Count -gt 1) {
-                # 1. Try exact/regex match with Repo name
-                $Match = $Exes | Where-Object { $_.Name -match "$Repo" } | Select-Object -First 1
+                # 1. Try exact/regex match with Repo name (Case-insensitive is default in PowerShell)
+                # Ignore extension for repo name matching
+                $Match = $Exes | Where-Object { 
+                    $baseName = $_.Name -replace "\.exe$", ""
+                    $baseName -match [regex]::Escape($Repo) 
+                } | Select-Object -First 1
 
                 # 2. Try loose match (ignoring hyphens/underscores)
                 if (-not $Match) {
                     $RepoClean = $Repo -replace "[-_]", ""
                     $Match = $Exes | Where-Object {
-                        ($_.Name -replace "[-_]", "") -match $RepoClean
+                        $baseName = $_.Name -replace "\.exe$", ""
+                        ($baseName -replace "[-_]", "") -match [regex]::Escape($RepoClean)
                     } | Select-Object -First 1
+                }
+
+                # 3. Fallback: If only one EXE is at root level, assume it's the bin
+                if (-not $Match) {
+                    $RootExes = $Exes | Where-Object { $_.FullName -notmatch "/" -and $_.FullName -notmatch "\\" }
+                    if ($RootExes.Count -eq 1) {
+                        $Match = $RootExes[0]
+                        $BinFallbackUsed = $true
+                    }
                 }
 
                 if ($Match) { $Bin = $Match.Name }
@@ -234,7 +248,7 @@ $Report = @"
 | ``license`` | ✅ Detected | $License |
 | ``architecture.64bit`` | ✅ Detected | $($Asset.name) |
 | ``hash`` | ✅ Calculated | $Hash |
-| ``bin`` | $(if ($Bin) { "⚠️ Suggested" } else { "⭕ Missing" }) | $(if ($Bin) { "``$Bin`` (Please Verify)" } else { "Please fill manually" }) |
+| ``bin`` | $(if ($Bin) { "⚠️ Suggested" } else { "⭕ Missing" }) | $(if ($Bin) { "``$Bin``" + $(if ($BinFallbackUsed) { " (Fallback detection, please verify)" } else { "" }) } else { "Please fill manually" }) |
 | ``shortcuts`` | $(if ($CreateShortcutBool -and $Bin) { "✅ Generated" } else { "⭕ Missing" }) | $(if ($CreateShortcutBool -and $Bin) { "Included" } else { "Please fill manually if needed" }) |
 | ``persist`` | ⭕ Missing | Please fill manually if needed |
 | ``checkver`` | ✅ Configured | ``github`` |
