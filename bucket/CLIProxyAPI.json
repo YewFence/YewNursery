@@ -10,6 +10,7 @@
     }
   },
   "bin": "cli-proxy-api.exe",
+  "persist":[["config.example.yaml","config.yaml"]],
   "checkver": "github",
   "autoupdate": {
     "architecture": {
