@@ -19,7 +19,16 @@ scoop install YewNursery/<app-name>
 
 ## 如何添加新的应用清单？
 
-### 快速开始
+### 自动添加（推荐）
+
+1. 进入 GitHub 仓库的 [Actions 页面](https://github.com/YewFence/YewNursery/actions)
+2. 点击左侧的 **New App** 工作流
+3. 点击 **Run workflow** 按钮
+4. 输入 GitHub 仓库地址（例如 `https://github.com/owner/repo`）
+5. 等待工作流运行完成，它会自动创建一个包含新应用的 Pull Request
+6. 检查 PR 中的应用清单，补充缺少的字段（如 `bin`, `shortcuts` 等）
+
+### 手动添加
 
 1. 复制 `bucket/app-name.template.jsonc` 并重命名为 `bucket/<app-name>.json`
 2. 删除所有 `//` 注释行
