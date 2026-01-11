@@ -1,7 +1,8 @@
 param (
     [Parameter(Mandatory = $true)]
     [string]$GitHubUrl,
-    [string]$CreateShortcut = "false"
+    [string]$CreateShortcut = "false",
+    [string]$ReportPath = "pr_body.md"
 )
 
 $CreateShortcutBool = [System.Convert]::ToBoolean($CreateShortcut)
@@ -138,18 +139,18 @@ if ($Asset.name -match "\.(zip|7z)$") {
             elseif ($Exes.Count -gt 1) {
                 # 1. Try exact/regex match with Repo name
                 $Match = $Exes | Where-Object { $_.Name -match "$Repo" } | Select-Object -First 1
-                
+
                 # 2. Try loose match (ignoring hyphens/underscores)
                 if (-not $Match) {
                     $RepoClean = $Repo -replace "[-_]", ""
-                    $Match = $Exes | Where-Object { 
-                        ($_.Name -replace "[-_]", "") -match $RepoClean 
+                    $Match = $Exes | Where-Object {
+                        ($_.Name -replace "[-_]", "") -match $RepoClean
                     } | Select-Object -First 1
                 }
 
                 if ($Match) { $Bin = $Match.Name }
             }
-            
+
             # Check for root folder
             $Roots = $Content | Where-Object { $_.FullName -match "^[^/]+/$" }
             # This is tricky with .NET ZipFile, let's skip complex extract_dir logic for now
@@ -247,7 +248,7 @@ $Report = @"
 
 "@
 
-$Report | Set-Content "pr_body.md"
+$Report | Set-Content $ReportPath
 
 # Helper for Zip (using System.IO.Compression.FileSystem)
 function Open-Zip {

@@ -29,7 +29,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./scripts/new-app.ps1 -GitHubUrl "${{ inputs.repo_url }}" -CreateShortcut:${{ inputs.create_shortcut }}
+          ./scripts/new-app.ps1 -GitHubUrl "${{ inputs.repo_url }}" -CreateShortcut:${{ inputs.create_shortcut }} -ReportPath "${{ runner.temp }}/pr_body.md"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
@@ -37,6 +37,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Add new app from ${{ inputs.repo_url }}"
           title: "feat: Add new app from ${{ inputs.repo_url }}"
-          body-path: pr_body.md
+          body-path: ${{ runner.temp }}/pr_body.md
           branch: "new-app-${{ github.run_id }}"
           delete-branch: true
