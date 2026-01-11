@@ -10,6 +10,14 @@ $CreateShortcutBool = [System.Convert]::ToBoolean($CreateShortcut)
 # Set up error handling
 $ErrorActionPreference = "Stop"
 
+# Helper for Zip (using System.IO.Compression.FileSystem)
+function Open-Zip {
+    param($Path)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $Zip = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    return $Zip.Entries
+}
+
 # Helper function to get matching asset
 function Get-MatchingAsset {
     param ($Assets)
@@ -263,11 +271,3 @@ $Report = @"
 "@
 
 $Report | Set-Content $ReportPath
-
-# Helper for Zip (using System.IO.Compression.FileSystem)
-function Open-Zip {
-    param($Path)
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $Zip = [System.IO.Compression.ZipFile]::OpenRead($Path)
-    return $Zip.Entries
-}
