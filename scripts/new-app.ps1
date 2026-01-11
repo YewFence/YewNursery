@@ -147,9 +147,9 @@ if ($Asset.name -match "\.(zip|7z)$") {
             elseif ($Exes.Count -gt 1) {
                 # 1. Try exact/regex match with Repo name (Case-insensitive is default in PowerShell)
                 # Ignore extension for repo name matching
-                $Match = $Exes | Where-Object { 
+                $Match = $Exes | Where-Object {
                     $baseName = $_.Name -replace "\.exe$", ""
-                    $baseName -match [regex]::Escape($Repo) 
+                    $baseName -match [regex]::Escape($Repo)
                 } | Select-Object -First 1
 
                 # 2. Try loose match (ignoring hyphens/underscores)
