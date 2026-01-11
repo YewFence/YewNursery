@@ -216,23 +216,23 @@ $Report = @"
 
 | Field | Status | Value |
 |-------|--------|-------|
-| `version` | ✅ Detected | `$Version` |
-| `description` | ✅ Detected | (See above) |
-| `homepage` | ✅ Detected | `$Homepage` |
-| `license` | ✅ Detected | `$License` |
-| `architecture.64bit` | ✅ Detected | `$($Asset.name)` |
-| `hash` | ✅ Calculated | `$Hash` |
-| `bin` | $(if ($Bin) { "⚠️ Suggested" } else { "⭕ Missing" }) | $(if ($Bin) { "`$Bin` (Please Verify)" } else { "Please fill manually" }) |
-| `shortcuts` | $(if ($CreateShortcutBool -and $Bin) { "✅ Generated" } else { "⭕ Missing" }) | $(if ($CreateShortcutBool -and $Bin) { "Included" } else { "Please fill manually if needed" }) |
-| `persist` | ⭕ Missing | Please fill manually if needed |
-| `checkver` | ✅ Configured | `github` |
-| `autoupdate` | ⚠️ Suggested | URL pattern generated |
+| ``version`` | ✅ Detected | $Version |
+| ``description`` | ✅ Detected | (See above) |
+| ``homepage`` | ✅ Detected | $Homepage |
+| ``license`` | ✅ Detected | $License |
+| ``architecture.64bit`` | ✅ Detected | $($Asset.name) |
+| ``hash`` | ✅ Calculated | $Hash |
+| ``bin`` | $(if ($Bin) { "⚠️ Suggested" } else { "⭕ Missing" }) | $(if ($Bin) { "``$Bin`` (Please Verify)" } else { "Please fill manually" }) |
+| ``shortcuts`` | $(if ($CreateShortcutBool -and $Bin) { "✅ Generated" } else { "⭕ Missing" }) | $(if ($CreateShortcutBool -and $Bin) { "Included" } else { "Please fill manually if needed" }) |
+| ``persist`` | ⭕ Missing | Please fill manually if needed |
+| ``checkver`` | ✅ Configured | ``github`` |
+| ``autoupdate`` | ⚠️ Suggested | URL pattern generated |
 
 ### Action Required
-1. Verify `bin` executable name.
-2. Check if `extract_dir` is needed (nested folders in zip).
-3. $(if ($CreateShortcutBool -and $Bin) { "Verify generated shortcuts." } else { "Add `shortcuts` if this is a GUI app." })
-4. Add `persist` if the app creates config files in its directory.
+1. Verify ``bin`` executable name.
+2. Check if ``extract_dir`` is needed (nested folders in zip).
+3. $(if ($CreateShortcutBool -and $Bin) { "Verify generated shortcuts." } else { "Add ``shortcuts`` if this is a GUI app." })
+4. Add ``persist`` if the app creates config files in its directory.
 
 "@
 
