@@ -14,8 +14,8 @@ $ErrorActionPreference = "Stop"
 function Open-Zip {
     param($Path)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $Zip = [System.IO.Compression.ZipFile]::OpenRead($Path)
-    return $Zip.Entries
+    # Return the ZipArchive object so caller can dispose it
+    return [System.IO.Compression.ZipFile]::OpenRead($Path)
 }
 
 # Helper function to get matching asset
@@ -136,49 +136,55 @@ if ($Asset.name -match "\.(zip|7z)$") {
         # Note: Expand-Archive only works for zip. 7z requires 7z.exe.
         # We'll assume zip for standard PowerShell, skip others.
         if ($Asset.name -match "\.zip$") {
-            $Content = Open-Zip $TempFile
-            # Simple heuristic: find .exe
-            $Exes = $Content | Where-Object { $_.Name -match "\.exe$" }
-            Write-Host "Found $($Exes.Count) EXEs in archive."
+            $ZipArchive = Open-Zip $TempFile
+            try {
+                $Content = $ZipArchive.Entries
+                # Simple heuristic: find .exe
+                $Exes = $Content | Where-Object { $_.Name -match "\.exe$" }
+                Write-Host "Found $($Exes.Count) EXEs in archive."
 
-            if ($Exes.Count -eq 1) {
-                $Bin = $Exes[0].Name
-            }
-            elseif ($Exes.Count -gt 1) {
-                # 1. Try exact/regex match with Repo name (Case-insensitive is default in PowerShell)
-                # Ignore extension for repo name matching
-                $Match = $Exes | Where-Object {
-                    $baseName = $_.Name -replace "\.exe$", ""
-                    $baseName -match [regex]::Escape($Repo)
-                } | Select-Object -First 1
-
-                # 2. Try loose match (ignoring hyphens/underscores)
-                if (-not $Match) {
-                    $RepoClean = $Repo -replace "[-_]", ""
+                if ($Exes.Count -eq 1) {
+                    $Bin = $Exes[0].Name
+                }
+                elseif ($Exes.Count -gt 1) {
+                    # 1. Try exact/regex match with Repo name (Case-insensitive is default in PowerShell)
+                    # Ignore extension for repo name matching
                     $Match = $Exes | Where-Object {
                         $baseName = $_.Name -replace "\.exe$", ""
-                        ($baseName -replace "[-_]", "") -match [regex]::Escape($RepoClean)
+                        $baseName -match [regex]::Escape($Repo)
                     } | Select-Object -First 1
-                }
 
-                # 3. Fallback: If only one EXE is at root level, assume it's the bin
-                if (-not $Match) {
-                    $RootExes = $Exes | Where-Object { $_.FullName -notmatch "/" -and $_.FullName -notmatch "\\" }
-                    if ($RootExes.Count -eq 1) {
-                        $Match = $RootExes[0]
-                        $BinFallbackUsed = $true
+                    # 2. Try loose match (ignoring hyphens/underscores)
+                    if (-not $Match) {
+                        $RepoClean = $Repo -replace "[-_]", ""
+                        $Match = $Exes | Where-Object {
+                            $baseName = $_.Name -replace "\.exe$", ""
+                            ($baseName -replace "[-_]", "") -match [regex]::Escape($RepoClean)
+                        } | Select-Object -First 1
                     }
+
+                    # 3. Fallback: If only one EXE is at root level, assume it's the bin
+                    if (-not $Match) {
+                        $RootExes = $Exes | Where-Object { $_.FullName -notmatch "/" -and $_.FullName -notmatch "\\" }
+                        if ($RootExes.Count -eq 1) {
+                            $Match = $RootExes[0]
+                            $BinFallbackUsed = $true
+                        }
+                    }
+
+                    if ($Match) { $Bin = $Match.Name }
                 }
 
-                if ($Match) { $Bin = $Match.Name }
+                # Check for root folder
+                $Roots = $Content | Where-Object { $_.FullName -match "^[^/]+/$" }
+                # This is tricky with .NET ZipFile, let's skip complex extract_dir logic for now
+                # and just check if all files are in a subdir matching the filename logic
+                $PossibleRoot = $Asset.name -replace "\.zip$", ""
+                # Logic omitted for brevity/stability, user can verify
             }
-
-            # Check for root folder
-            $Roots = $Content | Where-Object { $_.FullName -match "^[^/]+/$" }
-            # This is tricky with .NET ZipFile, let's skip complex extract_dir logic for now
-            # and just check if all files are in a subdir matching the filename logic
-            $PossibleRoot = $Asset.name -replace "\.zip$", ""
-            # Logic omitted for brevity/stability, user can verify
+            finally {
+                if ($ZipArchive) { $ZipArchive.Dispose() }
+            }
         }
     }
     catch {
