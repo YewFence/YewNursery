@@ -1,6 +1,8 @@
 on:
   issues:
     types: [opened, labeled]
+permissions:
+  issues: write
 name: Issues
 jobs:
   issueHandler:
