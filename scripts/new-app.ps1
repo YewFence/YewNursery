@@ -1,4 +1,3 @@
-# scripts/new-app.ps1
 param (
     [Parameter(Mandatory = $true)]
     [string]$GitHubUrl,
@@ -11,25 +10,59 @@ $ErrorActionPreference = "Stop"
 # Helper function to get matching asset
 function Get-MatchingAsset {
     param ($Assets)
-    # Prefer amd64/x64 and zip/exe
-    $candidates = $Assets | Where-Object { 
-        ($_.name -match "64" -or $_.name -match "amd64" -or $_.name -match "x86_64") -and 
+
+    # 1. Filter for 64-bit architectures
+    $candidates = $Assets | Where-Object {
+        ($_.name -match "64" -or $_.name -match "amd64" -or $_.name -match "x86_64") -and
         ($_.name -notmatch "arm64" -and $_.name -notmatch "aarch64")
     }
-    
+
     if (-not $candidates) {
         Write-Warning "No explicit 64-bit assets found. Checking all assets..."
         $candidates = $Assets
     }
 
+    # 2. Exclude non-Windows platforms
+    # Common Linux/Mac keywords
+    $nonWindows = "linux", "macos", "darwin", "android", "ubuntu", "debian", "fedora", "freebsd"
+    $candidates = $candidates | Where-Object {
+        $name = $_.name.ToLower()
+        # Return true if NO non-windows keyword matches
+        $isNonWindows = $false
+        foreach ($kw in $nonWindows) {
+            if ($name -match $kw) {
+                $isNonWindows = $true;
+                break
+            }
+        }
+        -not $isNonWindows
+    }
+
+    if (-not $candidates) {
+        Write-Warning "No suitable candidates found after filtering non-Windows assets."
+        return $null
+    }
+
+    # 3. Prioritize "windows" keyword
+    $winCandidates = $candidates | Where-Object { $_.name -match "win" }
+
+    # Use winCandidates if any, otherwise fall back to filtered candidates (generic names)
+    if ($winCandidates) {
+        $selectionPool = $winCandidates
+    }
+    else {
+        $selectionPool = $candidates
+    }
+
+    # 4. Select by extension priority
     # Priority: zip > exe > msi > 7z > tar.gz
     $priority = @("zip", "exe", "msi", "7z", "tar.gz")
-    
+
     foreach ($ext in $priority) {
-        $match = $candidates | Where-Object { $_.name -match "\.$ext$" } | Select-Object -First 1
+        $match = $selectionPool | Where-Object { $_.name -match "\.$ext$" } | Select-Object -First 1
         if ($match) { return $match }
     }
-    
+
     return $null
 }
 
@@ -89,7 +122,7 @@ $Shortcuts = @()
 if ($Asset.name -match "\.(zip|7z)$") {
     try {
         Write-Host "Inspecting archive..."
-        # Note: Expand-Archive only works for zip. 7z requires 7z.exe. 
+        # Note: Expand-Archive only works for zip. 7z requires 7z.exe.
         # We'll assume zip for standard PowerShell, skip others.
         if ($Asset.name -match "\.zip$") {
             $Content = Open-Zip $TempFile
@@ -103,9 +136,9 @@ if ($Asset.name -match "\.(zip|7z)$") {
                 $Match = $Exes | Where-Object { $_.Name -match "$Repo" } | Select-Object -First 1
                 if ($Match) { $Bin = $Match.Name }
             }
-            
+
             # Check for root folder
-            $Roots = $Content | Where-Object { $_.FullName -match "^[^/]+/$" } 
+            $Roots = $Content | Where-Object { $_.FullName -match "^[^/]+/$" }
             # This is tricky with .NET ZipFile, let's skip complex extract_dir logic for now
             # and just check if all files are in a subdir matching the filename logic
             $PossibleRoot = $Asset.name -replace "\.zip$", ""
