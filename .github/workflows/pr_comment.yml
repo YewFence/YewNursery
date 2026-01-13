@@ -90,7 +90,7 @@ jobs:
             await script({github, context, core});
 
       - name: Ensure Main is fetched
-        run: git fetch origin main
+        run: git fetch origin ${{ github.event.repository.default_branch }}
 
       - name: Checkout Scoop Core (for formatjson)
         uses: actions/checkout@v4
