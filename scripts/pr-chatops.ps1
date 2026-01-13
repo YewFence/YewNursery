@@ -34,10 +34,10 @@ function Run-Jq {
     # To avoid quoting hell, we pass arguments carefully.
 
     $StdErrFile = "$TempFile.err"
-    $proc = Start-Process -FilePath "jq" -ArgumentList ($jqArgs) -NoNewWindow -PassThru -RedirectStandardOutput $TempFile -RedirectStandardError $StdErrFile
-    $proc.WaitForExit()
+    # Use call operator with splatting to handle arguments correctly
+    & jq @jqArgs 2> "$StdErrFile" > "$TempFile"
 
-    if ($proc.ExitCode -ne 0) {
+    if ($LASTEXITCODE -ne 0) {
         $errMsg = if (Test-Path $StdErrFile) { Get-Content -Raw $StdErrFile } else { "Unknown error" }
         Remove-Item $StdErrFile -Force -ErrorAction SilentlyContinue
         Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
@@ -54,7 +54,9 @@ function Parse-Args {
     $tokens = [System.Management.Automation.PSParser]::Tokenize($Line, [ref]$null)
     $argsList = @()
     foreach ($t in $tokens) {
-        if ($t.Type -in @('String', 'CommandArgument')) {
+        Write-Host "Debug: Token Type='$($t.Type)' Content='$($t.Content)'"
+        # Allow Command, String, CommandArgument types
+        if ($t.Type -in @('String', 'CommandArgument', 'Command')) {
             if (-not [string]::IsNullOrWhiteSpace($t.Content)) {
                 $argsList += $t.Content
             }
@@ -69,7 +71,8 @@ try {
     $manifestPath = Get-ChangedManifestPath
     Write-Host "Target manifest: $manifestPath"
 
-    $parsedArgs = Parse-Args $ArgsLine
+    $parsedArgs = @(Parse-Args $ArgsLine)
+    Write-Host "Debug: ArgsLine='$ArgsLine' ParsedCount=$($parsedArgs.Count) Args=$($parsedArgs -join ',')"
 
     switch ($Command) {
         "/set-bin" {
