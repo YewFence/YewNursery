@@ -110,7 +110,7 @@ try {
             elseif ($parsedArgs.Count -eq 2) {
                 # .bin = [["exe", "alias"]]
                 # Note: We create nested array structure
-                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue @( @($parsedArgs[0], $parsedArgs[1]) ) -Force }
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue @( , @($parsedArgs[0], $parsedArgs[1]) ) -Force }
                 Write-Host "Set bin to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
             }
             else {
@@ -158,7 +158,7 @@ try {
             }
 
             # .shortcuts = [["exe", "name"]]
-            Update-Manifest { param($j) $j | Add-Member -NotePropertyName "shortcuts" -NotePropertyValue @( @($target, $shortcutName) ) -Force }
+            Update-Manifest { param($j) $j | Add-Member -NotePropertyName "shortcuts" -NotePropertyValue @( , @($target, $shortcutName) ) -Force }
             Write-Host "Set shortcut: $target -> $shortcutName"
         }
         "/set-persist" {
@@ -169,7 +169,7 @@ try {
             }
             elseif ($parsedArgs.Count -eq 2) {
                 # .persist = [["data", "alias"]]
-                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue @( @($parsedArgs[0], $parsedArgs[1]) ) -Force }
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue @( , @($parsedArgs[0], $parsedArgs[1]) ) -Force }
                 Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
             }
             else {
