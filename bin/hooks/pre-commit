@@ -1,15 +1,9 @@
 #!/bin/sh
 
 # 获取暂存区中我们关心的文件 (排除删除的文件)
-files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ps1|psm1|json|yml|yaml|md|txt)$')
-
-if [ -z "$files" ]; then
+if ! git diff --cached --name-only --diff-filter=ACM -z | grep -z -q -E '\.(ps1|psm1|json|yml|yaml|md|txt|js)$'; then
     exit 0
 fi
-
-# 将换行符转换为空格，以便传递给 PowerShell
-# 注意：如果文件名包含空格，这里可能需要更复杂的处理，但在简单场景下通常足够
-file_args=$(echo "$files" | tr '\n' ' ')
 
 echo "🔍 Running style check on staged files..."
 
@@ -20,10 +14,11 @@ else
     SHELL_CMD="powershell"
 fi
 
-# 调用修复脚本，但关闭自动修复 (-Fix 0)
+# 调用修复脚本，但关闭自动修复 (-Fix $false)
 # 我们使用 ValueFromRemainingArguments 接收文件列表，所以直接跟在参数后面即可
-# 使用 -Fix 0 (空格分隔) 而不是 -Fix:0，以避免在 -File 模式下的参数解析问题
-$SHELL_CMD -NoProfile -ExecutionPolicy Bypass -File "./bin/fix-style.ps1" -Fix 0 $file_args
+git diff --cached --name-only --diff-filter=ACM -z \
+    | grep -z -E '\.(ps1|psm1|json|yml|yaml|md|txt|js)$' \
+    | xargs -0 -r $SHELL_CMD -NoProfile -ExecutionPolicy Bypass -Command "& './bin/fix-style.ps1' -Fix \$false"
 
 rc=$?
 if [ $rc -ne 0 ]; then

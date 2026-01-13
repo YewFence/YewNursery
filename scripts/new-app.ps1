@@ -20,7 +20,7 @@ function Render-Template {
     $Content = Get-Content -Path $Path -Raw -Encoding UTF8
     foreach ($key in $Data.Keys) {
         $Token = "{{" + $key + "}}"
-        $Value = if ($Data[$key]) { $Data[$key] } else { "" }
+        $Value = if ($null -ne $Data[$key]) { $Data[$key] } else { "" }
         # Simple string replacement
         $Content = $Content.Replace($Token, $Value)
     }

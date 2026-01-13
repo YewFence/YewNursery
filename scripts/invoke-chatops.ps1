@@ -37,7 +37,7 @@ if ($cmd) {
         # For now, let's find the changed JSON file first.
         $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
         if ($files -is [array] -and $files.Count -gt 1) {
-            Write-Error "Multiple manifest files found in the changes. Please modify one manifest per PR."
+            throw "Multiple manifest files found in the changes. Please modify one manifest per PR."
         }
         if ($files -is [array]) { $files = $files[0] }
 
@@ -46,6 +46,10 @@ if ($cmd) {
             $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
         }
     } catch {
+        if ($_.Exception.Message -match "Multiple manifest files found") {
+            Write-Error $_.Exception.Message
+            exit 1
+        }
         Write-Warning "Could not capture pre-execution state: $_"
     }
 
@@ -63,22 +67,7 @@ if ($cmd) {
     if ($manifestPath -and (Test-Path $manifestPath)) {
         Write-Host "Generating report for $manifestPath..."
         try {
-             # We pass the OLD content as a string.
-             # Note: PowerShell argument passing of multiline strings can be tricky,
-             # so we might pass it via file or Base64 if it was complex, but direct string usually works for JSON.
-             # Alternatively, we just pass the path and let the report script read the NEW content,
-             # but we need to pass the OLD content somehow.
-
-             # Let's save old content to a temp file to be safe
-             $oldFile = "old_manifest.tmp"
-             if ($oldContent) {
-                $oldContent | Out-File -FilePath $oldFile -Encoding utf8
-                $oldContentRaw = Get-Content -Raw $oldFile
-             } else {
-                $oldContentRaw = ""
-             }
-
-             ./scripts/generate-report.ps1 -ManifestPath $manifestPath -OldContentString $oldContentRaw
+             ./scripts/generate-report.ps1 -ManifestPath $manifestPath -OldContentString $oldContent
         } catch {
              Write-Warning "Report generation failed: $_"
         }

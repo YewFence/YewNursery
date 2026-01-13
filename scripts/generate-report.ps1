@@ -24,9 +24,7 @@ if (-not [string]::IsNullOrWhiteSpace($OldContentString)) {
 # Define keys to display
 $keys = @("version", "description", "license", "homepage", "bin", "shortcuts", "persist", "checkver", "autoupdate")
 
-$rows = @()
-
-foreach ($key in $keys) {
+$rows = foreach ($key in $keys) {
     $newVal = $newJson.$key
     if ($oldJson) { $oldVal = $oldJson.$key } else { $oldVal = $null }
 
@@ -64,7 +62,7 @@ foreach ($key in $keys) {
 
     # Only add row if value exists or was modified
     if ($newValStr -ne "*(null)*" -or $statusIcon -match "Updated") {
-         $rows += "| $styleKey | $statusIcon | $displayVal |"
+         "| $styleKey | $statusIcon | $displayVal |"
     }
 }
 

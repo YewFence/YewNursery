@@ -1,5 +1,5 @@
 param(
-    [switch]$Fix = $true,
+    [bool]$Fix = $true,
     [Parameter(ValueFromRemainingArguments=$true)]
     [string[]]$TargetFiles
 )
@@ -54,6 +54,8 @@ foreach ($File in $Files) {
 
     # Normalize content: remove trailing whitespace per line, ensure single newline at end
     $NewContent = $Content -replace "(?m)[ \t]+(?=\r?$)", ""
+    # Normalize to CRLF
+    $NewContent = $NewContent -replace "(?<!\r)\n", "`r`n"
     $NewContent = $NewContent.TrimEnd() + [Environment]::NewLine
 
     if (($Content -ne $NewContent) -or $HasBom) {

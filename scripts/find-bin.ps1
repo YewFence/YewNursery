@@ -76,7 +76,7 @@ function Normalize-Name {
     # Remove version numbers, arch, platform
     $n = $Name -replace "[-_.]?(v?\d+\.\d+(\.\d+)?).*", ""
     $n = $n -replace "[-_](windows|win|win64|x64|x86_64|portable|amd64).*", ""
-    return $n
+    return [Regex]::Escape($n)
 }
 
 # --- Main Logic ---
@@ -161,10 +161,10 @@ if ($fileList.Count -gt 0) {
 }
 
 # 3. Score Candidates
-$candidates = @()
 $normalizedAppName = Normalize-Name -Name $AppName
+$normalizedLiteral = if ($normalizedAppName) { [Regex]::Unescape($normalizedAppName) } else { "" }
 
-foreach ($path in $fileList) {
+$candidates = foreach ($path in $fileList) {
     $score = 0
     $name = [System.IO.Path]::GetFileNameWithoutExtension($path)
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
@@ -196,7 +196,7 @@ foreach ($path in $fileList) {
 
     # Rule 4: Name Match (The most important)
     if ($normalizedAppName) {
-        if ($name -eq $normalizedAppName) {
+        if ($name -eq $normalizedLiteral) {
             $score += 50 # Jackpot
         } elseif ($name -match "^$normalizedAppName" -or $name -match "$normalizedAppName$") {
             $score += 20 # Partial match
@@ -206,7 +206,7 @@ foreach ($path in $fileList) {
     }
 
     # Create object
-    $candidates += [PSCustomObject]@{
+    [PSCustomObject]@{
         Path = $path
         Score = $score
         IsBlacklisted = $isBlacklisted

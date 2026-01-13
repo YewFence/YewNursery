@@ -44,14 +44,18 @@ function Run-Jq {
     # Note: We use Invoke-Expression or & to run it.
     # To avoid quoting hell, we pass arguments carefully.
 
-    $proc = Start-Process -FilePath "jq" -ArgumentList ($jqArgs) -NoNewWindow -PassThru -RedirectStandardOutput $TempFile
+    $StdErrFile = "$TempFile.err"
+    $proc = Start-Process -FilePath "jq" -ArgumentList ($jqArgs) -NoNewWindow -PassThru -RedirectStandardOutput $TempFile -RedirectStandardError $StdErrFile
     $proc.WaitForExit()
 
     if ($proc.ExitCode -ne 0) {
+        $errMsg = if (Test-Path $StdErrFile) { Get-Content -Raw $StdErrFile } else { "Unknown error" }
+        Remove-Item $StdErrFile -Force -ErrorAction SilentlyContinue
         Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
-        Throw "jq execution failed."
+        Throw "jq execution failed: $errMsg"
     }
 
+    Remove-Item $StdErrFile -Force -ErrorAction SilentlyContinue
     Move-Item $TempFile $Path -Force
 }
 
@@ -158,16 +162,23 @@ try {
             $key = $parsedArgs[0]
             $val = $parsedArgs[1]
 
-            # Use specific filter for this
-            $filter = ".[""$key""] = `$a1"
-            # Note: PowerShell interpolation for $key, but $a1 is jq variable
+            if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+                Write-Error "Invalid key format. Keys must be alphanumeric with underscores."
+            }
 
-            Run-Jq -Path $manifestPath -Filter ".[`"$key`"] = `$a1" -Arg1 $val
+            Run-Jq -Path $manifestPath -Filter '.[$a1] = $a2' -Arg1 $key -Arg2 $val
             Write-Host "Set $key = $val"
         }
         "/list-config" {
             if ($parsedArgs.Count -gt 0) { Write-Error "Usage: /list-config" }
             Write-Host "Listing current config for: $manifestPath"
+            $content = Get-Content -Raw $manifestPath
+            try {
+                $json = $content | ConvertFrom-Json
+                Write-Host ($json | ConvertTo-Json -Depth 10)
+            } catch {
+                Write-Host $content
+            }
         }
         default {
             Write-Error "Unknown command: $Command"

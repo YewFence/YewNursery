@@ -21,21 +21,21 @@ module.exports = async ({ github, context, core }) => {
 
   const body = `### ❌ ChatOps Command Failed
 
-  **Error Details:**
-  \`\`\`text
-  ${log}
-  \`\`\`
+**Error Details:**
+\`\`\`text
+${log}
+\`\`\`
 
-  **Usage Guide:**
-  - \`/set-bin <exe> [alias]\`
-  - \`/set-shortcut <name> (auto-detect target)\`
-  - \`/set-shortcut <target> <name>\`
-  - \`/set-persist <file> [alias]\`
-  - \`/set-key <key> <value>\`
-  - \`/list-config\`
+**Usage Guide:**
+- \`/set-bin <exe> [alias]\`
+- \`/set-shortcut <name> (auto-detect target)\`
+- \`/set-shortcut <target> <name>\`
+- \`/set-persist <file> [alias]\`
+- \`/set-key <key> <value>\`
+- \`/list-config\`
 
-  [View Action Log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
-  `;
+[View Action Log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+`;
 
   try {
     await github.rest.issues.createComment({

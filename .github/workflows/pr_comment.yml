@@ -72,6 +72,14 @@ jobs:
             core.setOutput('head_ref', pr.head.ref);
             core.setOutput('head_repo', pr.head.repo.full_name);
 
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_info.outputs.head_repo }}
+          ref: ${{ steps.pr_info.outputs.head_ref }}
+          fetch-depth: 0
+
       - name: Acknowledge Processing
         uses: actions/github-script@v7
         env:
@@ -80,14 +88,6 @@ jobs:
           script: |
             const script = require('./scripts/github/add-reaction.js');
             await script({github, context, core});
-
-      - name: Checkout PR
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ steps.pr_info.outputs.head_repo }}
-          ref: ${{ steps.pr_info.outputs.head_ref }}
-          fetch-depth: 0
 
       - name: Ensure Main is fetched
         run: git fetch origin main

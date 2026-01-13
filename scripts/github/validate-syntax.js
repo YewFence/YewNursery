@@ -34,35 +34,47 @@ module.exports = async ({ github, context, core }) => {
       }
     }
     if (current) args.push(current);
+    if (inQuote) {
+      throw new Error(`Unclosed quote: expected closing ${quoteChar}`);
+    }
     return args;
   }
 
-  const tokens = parseArgs(line.trim());
-  const cmd = tokens[0];
-  const args = tokens.slice(1);
   let error = null;
+  let cmd = null;
+  let args = [];
+
+  try {
+    const tokens = parseArgs(line.trim());
+    cmd = tokens[0];
+    args = tokens.slice(1);
+  } catch (err) {
+    error = err.message || 'Invalid command syntax.';
+  }
 
   console.log(`Command: ${cmd}, Args: ${JSON.stringify(args)}`);
 
-  switch (cmd) {
-    case '/set-bin':
-      if (args.length < 1 || args.length > 2) error = "Usage: `/set-bin <exe> [alias]`";
-      break;
-    case '/set-shortcut':
-      if (args.length < 1 || args.length > 2) error = "Usage: `/set-shortcut <name>` (auto) OR `/set-shortcut <target> <name>`";
-      break;
-    case '/set-persist':
-      if (args.length < 1 || args.length > 2) error = "Usage: `/set-persist <file> [alias]`";
-      break;
-    case '/set-key':
-      if (args.length < 2) error = "Usage: `/set-key <key> <value>`";
-      break;
-    case '/list-config':
-      if (args.length > 0) error = "Usage: `/list-config` (no arguments)";
-      break;
-    default:
-      // Should be caught by 'if', but just in case
-      error = `Unknown command: ${cmd}`;
+  if (!error) {
+    switch (cmd) {
+      case '/set-bin':
+        if (args.length < 1 || args.length > 2) error = "Usage: `/set-bin <exe> [alias]`";
+        break;
+      case '/set-shortcut':
+        if (args.length < 1 || args.length > 2) error = "Usage: `/set-shortcut <name>` (auto) OR `/set-shortcut <target> <name>`";
+        break;
+      case '/set-persist':
+        if (args.length < 1 || args.length > 2) error = "Usage: `/set-persist <file> [alias]`";
+        break;
+      case '/set-key':
+        if (args.length < 2) error = "Usage: `/set-key <key> <value>`";
+        break;
+      case '/list-config':
+        if (args.length > 0) error = "Usage: `/list-config` (no arguments)";
+        break;
+      default:
+        // Should be caught by 'if', but just in case
+        error = `Unknown command: ${cmd}`;
+    }
   }
 
   if (error) {
