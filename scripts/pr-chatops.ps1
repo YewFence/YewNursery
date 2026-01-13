@@ -7,7 +7,7 @@ param (
 $ErrorActionPreference = 'Stop'
 
 function Get-ManifestPath {
-    $files = git diff --name-only origin/main...HEAD | Where-Object { $_ -match '^bucket\\.*\.json$' -or $_ -match '^bucket/.*\.json$' }
+    $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
     if (-not $files) {
         Write-Error "No manifest file found in the changes."
     }

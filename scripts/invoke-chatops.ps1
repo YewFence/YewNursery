@@ -35,7 +35,7 @@ if ($cmd) {
         # but here we just do a quick guess for before-state or let pr-chatops handle validation.
         # Ideally, we should unify this logic.
         # For now, let's find the changed JSON file first.
-        $files = git diff --name-only origin/main...HEAD | Where-Object { $_ -match '^bucket\\.*\.json$' -or $_ -match '^bucket/.*\.json$' }
+        $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
         if ($files -is [array]) { $files = $files[0] }
 
         if ($files -and (Test-Path $files)) {
