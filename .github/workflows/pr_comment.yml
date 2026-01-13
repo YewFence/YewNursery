@@ -174,9 +174,9 @@ jobs:
         env:
           SCOOP_HOME: ${{ github.workspace }}/scoop_core
           COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
-        run: |
-          chmod +x ./scripts/invoke-chatops.ps1
-          ./scripts/invoke-chatops.ps1
+          REPORT_FILE: chatops-report.md
+          LOG_FILE: chatops.log
+        run: ./scripts/invoke-chatops.ps1
 
       - name: Format JSON
         shell: pwsh
@@ -200,7 +200,10 @@ jobs:
           script: |
             if (context.eventName === 'workflow_dispatch') {
                 // Mock for reporting
-                context.payload.comment = { id: 1 };
+                context.payload.comment = { 
+                    id: 1, 
+                    body: context.payload.inputs.comment_body 
+                };
                 Object.defineProperty(context, 'issue', {
                     get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
                 });
@@ -216,7 +219,10 @@ jobs:
           script: |
             if (context.eventName === 'workflow_dispatch') {
                 // Mock for reporting
-                context.payload.comment = { id: 1 };
+                context.payload.comment = { 
+                    id: 1, 
+                    body: context.payload.inputs.comment_body 
+                };
                 Object.defineProperty(context, 'issue', {
                     get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
                 });

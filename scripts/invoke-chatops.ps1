@@ -47,11 +47,24 @@ if ($cmd) {
 
     # 2. Execute script and capture ALL output (streams *>&1) to log file
     # We use try/catch to ensure we capture the exit code correctly while Tee-Object runs
+    $scriptFailed = $false
     try {
         & ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine -ManifestPath $manifestPath *>&1 | Tee-Object -FilePath "chatops.log"
-        if ($LASTEXITCODE -ne 0) { throw "Script failed with exit code $LASTEXITCODE" }
+        # Check both $LASTEXITCODE and $? to catch all failure scenarios
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { 
+            $scriptFailed = $true
+            throw "Script failed with exit code $LASTEXITCODE" 
+        }
+        if (-not $?) {
+            $scriptFailed = $true
+            throw "Script execution failed"
+        }
     } catch {
+        $scriptFailed = $true
         Write-Error "ChatOps execution failed: $_"
+    }
+    
+    if ($scriptFailed) {
         exit 1
     }
 
