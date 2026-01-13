@@ -1,4 +1,4 @@
-﻿module.exports = async ({ github, context, core }) => {
+module.exports = async ({ github, context, core }) => {
   const fs = require('fs');
   const logFile = process.env.LOG_FILE || 'chatops.log';
   let log = '';

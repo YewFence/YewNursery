@@ -1,4 +1,4 @@
-﻿module.exports = async ({ github, context, core }) => {
+module.exports = async ({ github, context, core }) => {
   const reaction = process.env.REACTION_CONTENT;
   if (!reaction) {
     console.log('No reaction content specified in REACTION_CONTENT env var.');

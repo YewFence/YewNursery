@@ -37,16 +37,39 @@ foreach ($File in $Files) {
 
     if (-not $Content) { continue }
 
+    # Check for UTF-8 BOM
+    $HasBom = $false
+    try {
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $Bytes = Get-Content -LiteralPath $File.FullName -AsByteStream -TotalCount 3 -ErrorAction Stop
+        } else {
+            $Bytes = Get-Content -LiteralPath $File.FullName -Encoding Byte -TotalCount 3 -ErrorAction Stop
+        }
+        if ($Bytes.Count -eq 3 -and $Bytes[0] -eq 0xEF -and $Bytes[1] -eq 0xBB -and $Bytes[2] -eq 0xBF) {
+            $HasBom = $true
+        }
+    } catch {
+        # Ignore read errors for BOM check
+    }
+
     # Normalize content: remove trailing whitespace per line, ensure single newline at end
     $NewContent = $Content -replace "(?m)[ \t]+(?=\r?$)", ""
     $NewContent = $NewContent.TrimEnd() + [Environment]::NewLine
 
-    if ($Content -ne $NewContent) {
-        Write-Host "Style issues found (trailing whitespace or EOF): $($File.FullName)" -ForegroundColor Yellow
+    if (($Content -ne $NewContent) -or $HasBom) {
+        if ($HasBom) {
+            Write-Host "UTF-8 BOM found: $($File.FullName)" -ForegroundColor Yellow
+        }
+        if ($Content -ne $NewContent) {
+            Write-Host "Style issues found (trailing whitespace or EOF): $($File.FullName)" -ForegroundColor Yellow
+        }
+
         $Failed = $true
 
         if ($Fix) {
-            $NewContent | Set-Content -LiteralPath $File.FullName -NoNewline -Encoding UTF8
+            # Use .NET to write UTF-8 without BOM, compatible with both WinPS and PS Core
+            $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+            [System.IO.File]::WriteAllText($File.FullName, $NewContent, $Utf8NoBom)
             Write-Host "  Fixed." -ForegroundColor Green
         }
     }

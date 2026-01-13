@@ -1,4 +1,4 @@
-﻿module.exports = async ({ github, context, core }) => {
+module.exports = async ({ github, context, core }) => {
   const body = context.payload.comment.body;
   // Get first line starting with /
   const line = body.split('\n').find(l => l.trim().startsWith('/'));

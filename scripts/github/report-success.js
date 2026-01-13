@@ -1,4 +1,4 @@
-﻿module.exports = async ({ github, context, core }) => {
+module.exports = async ({ github, context, core }) => {
   const fs = require('fs');
   const reportFile = process.env.REPORT_FILE || 'chatops-report.md';
   let body = '';
