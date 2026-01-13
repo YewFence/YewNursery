@@ -24,20 +24,56 @@ if (-not (Test-Path $ManifestPath)) {
 
 Write-Host "Target manifest: $ManifestPath"
 
-# Parse Arguments using PowerShell's tokenizer
+# Parse Arguments using PowerShell's tokenizer with quote support
 function Parse-Args {
     param($Line)
-    $tokens = [System.Management.Automation.PSParser]::Tokenize($Line, [ref]$null)
-    $argsList = @()
-    foreach ($t in $tokens) {
-        # Allow Command, String, CommandArgument types
-        if ($t.Type -in @('String', 'CommandArgument', 'Command')) {
-            if (-not [string]::IsNullOrWhiteSpace($t.Content)) {
-                $argsList += $t.Content
+    
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        return @()
+    }
+    
+    $args = @()
+    $current = ''
+    $inQuote = $false
+    $quoteChar = ''
+    
+    for ($i = 0; $i -lt $Line.Length; $i++) {
+        $char = $Line[$i]
+        
+        if ($inQuote) {
+            if ($char -eq $quoteChar) {
+                # End quote
+                $inQuote = $false
+            } else {
+                $current += $char
+            }
+        } else {
+            if ($char -eq '"' -or $char -eq "'") {
+                # Start quote
+                $inQuote = $true
+                $quoteChar = $char
+            } elseif ($char -match '\s') {
+                # Whitespace outside quotes
+                if ($current) {
+                    $args += $current
+                    $current = ''
+                }
+            } else {
+                $current += $char
             }
         }
     }
-    return $argsList
+    
+    # Add last token
+    if ($current) {
+        $args += $current
+    }
+    
+    if ($inQuote) {
+        throw "Unclosed quote: expected closing $quoteChar"
+    }
+    
+    return $args
 }
 
 # Function to load, modify and save JSON
@@ -130,10 +166,21 @@ try {
         "/set-key" {
             if ($parsedArgs.Count -lt 2) { Throw "Usage: /set-key <key> <value>" }
             $key = $parsedArgs[0]
-            $val = $parsedArgs[1]
+            # Join all remaining args to support multi-word values
+            $val = $parsedArgs[1..($parsedArgs.Count-1)] -join ' '
 
             if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
                 Throw "Invalid key format. Keys must be alphanumeric with underscores."
+            }
+
+            # Try to parse as JSON for objects/arrays, otherwise keep as string
+            if ($val -match '^[\[\{]') {
+                try {
+                    $val = $val | ConvertFrom-Json
+                    Write-Host "Parsed value as JSON: $($val | ConvertTo-Json -Compress)"
+                } catch {
+                    Write-Host "Keeping value as string (JSON parse failed): $val"
+                }
             }
 
             Update-Manifest { 
