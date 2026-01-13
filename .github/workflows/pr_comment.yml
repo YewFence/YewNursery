@@ -30,7 +30,8 @@ jobs:
       (startsWith(github.event.comment.body, '/set-bin') ||
        startsWith(github.event.comment.body, '/set-shortcut') ||
        startsWith(github.event.comment.body, '/set-persist') ||
-       startsWith(github.event.comment.body, '/set-key'))
+       startsWith(github.event.comment.body, '/set-key') ||
+       startsWith(github.event.comment.body, '/list-config'))
     steps:
       - name: Checkout PR (for scripts)
         uses: actions/checkout@v4

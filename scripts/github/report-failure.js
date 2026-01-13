@@ -32,6 +32,7 @@ module.exports = async ({ github, context, core }) => {
   - \`/set-shortcut <target> <name>\`
   - \`/set-persist <file> [alias]\`
   - \`/set-key <key> <value>\`
+  - \`/list-config\`
   
   [View Action Log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
   `;

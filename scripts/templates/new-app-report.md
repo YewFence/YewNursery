@@ -42,3 +42,4 @@ Use these commands in PR comments to update the manifest automatically:
 | `/set-shortcut` | `/set-shortcut "App Name"`<br>`/set-shortcut "app.exe" "App Name"` | Create a Start Menu shortcut (Auto-detect target or manual). |
 | `/set-persist` | `/set-persist "config.ini"` | Persist configuration files. |
 | `/set-key` | `/set-key "description" "New desc"` | Update any manifest field manually. |
+| `/list-config` | `/list-config` | Show current configuration status. |
