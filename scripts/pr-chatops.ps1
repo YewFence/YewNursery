@@ -58,8 +58,10 @@ function Parse-Args {
     $tokens = [System.Management.Automation.PSParser]::Tokenize($Line, [ref]$null)
     $argsList = @()
     foreach ($t in $tokens) {
-        if ($t.Type -eq 'String') {
-            $argsList += $t.Content
+        if ($t.Type -in @('String', 'CommandArgument')) {
+            if (-not [string]::IsNullOrWhiteSpace($t.Content)) {
+                $argsList += $t.Content
+            }
         }
     }
     return $argsList
@@ -159,6 +161,10 @@ try {
 
             Run-Jq -Path $manifestPath -Filter ".[`"$key`"] = `$a1" -Arg1 $val
             Write-Host "Set $key = $val"
+        }
+        "/list-config" {
+            if ($parsedArgs.Count -gt 0) { Write-Error "Usage: /list-config" }
+            Write-Host "Listing current config for: $manifestPath"
         }
         default {
             Write-Error "Unknown command: $Command"
