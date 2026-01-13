@@ -38,7 +38,7 @@ foreach ($File in $Files) {
     if (-not $Content) { continue }
 
     # Normalize content: remove trailing whitespace per line, ensure single newline at end
-    $NewContent = $Content -replace "(?m)[ \t]+$", ""
+    $NewContent = $Content -replace "(?m)[ \t]+(?=\r?$)", ""
     $NewContent = $NewContent.TrimEnd() + [Environment]::NewLine
 
     if ($Content -ne $NewContent) {

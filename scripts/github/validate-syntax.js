@@ -1,4 +1,4 @@
-module.exports = async ({ github, context, core }) => {
+﻿module.exports = async ({ github, context, core }) => {
   const body = context.payload.comment.body;
   // Get first line starting with /
   const line = body.split('\n').find(l => l.trim().startsWith('/'));
@@ -10,7 +10,7 @@ module.exports = async ({ github, context, core }) => {
     let current = '';
     let inQuote = false;
     let quoteChar = '';
-    
+
     for (let i = 0; i < str.length; i++) {
       const char = str[i];
       if (inQuote) {
@@ -67,10 +67,10 @@ module.exports = async ({ github, context, core }) => {
 
   if (error) {
     console.log("Validation failed:", error);
-    
+
     // Report failure
     const failBody = `### ⚠️ ChatOps Syntax Error
-    
+
     **Command:** \`${line}\`
     **Error:** ${error}
 

@@ -1,8 +1,8 @@
-module.exports = async ({ github, context, core }) => {
+﻿module.exports = async ({ github, context, core }) => {
   const fs = require('fs');
   const reportFile = process.env.REPORT_FILE || 'chatops-report.md';
   let body = '';
-  
+
   try {
     // Try to read the report file if it exists
     if (fs.existsSync(reportFile)) {
@@ -14,7 +14,7 @@ module.exports = async ({ github, context, core }) => {
   } catch (e) {
     body = `### ✅ ChatOps Applied\n\nError reading report: ${e.message}`;
   }
-  
+
   // Add log link footer
   body += `\n\n[View Action Log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
 
@@ -34,7 +34,7 @@ module.exports = async ({ github, context, core }) => {
       repo: context.repo.repo,
       body: body
     });
-    
+
     console.log("Posted success report.");
   } catch (error) {
     console.error('Failed to send success report:', error);

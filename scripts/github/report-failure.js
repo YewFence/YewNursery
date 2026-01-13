@@ -1,8 +1,8 @@
-module.exports = async ({ github, context, core }) => {
+﻿module.exports = async ({ github, context, core }) => {
   const fs = require('fs');
   const logFile = process.env.LOG_FILE || 'chatops.log';
   let log = '';
-  
+
   try {
     // Try to read the log file if it exists
     if (fs.existsSync(logFile)) {
@@ -13,7 +13,7 @@ module.exports = async ({ github, context, core }) => {
   } catch (e) {
     log = `Error reading log: ${e.message}`;
   }
-  
+
   // Truncate log if too long (Github comment limit is ~65k chars, but let's keep it shorter)
   if (log.length > 2000) {
     log = log.substring(0, 2000) + '\n... (truncated)';
@@ -33,7 +33,7 @@ module.exports = async ({ github, context, core }) => {
   - \`/set-persist <file> [alias]\`
   - \`/set-key <key> <value>\`
   - \`/list-config\`
-  
+
   [View Action Log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
   `;
 
@@ -44,7 +44,7 @@ module.exports = async ({ github, context, core }) => {
       repo: context.repo.repo,
       body: body
     });
-    
+
     await github.rest.reactions.createForIssueComment({
       owner: context.repo.owner,
       repo: context.repo.repo,

@@ -4,7 +4,7 @@
     console.log('No reaction content specified in REACTION_CONTENT env var.');
     return;
   }
-  
+
   try {
     await github.rest.reactions.createForIssueComment({
       owner: context.repo.owner,
