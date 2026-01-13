@@ -28,18 +28,27 @@ $rows = @()
 
 foreach ($key in $keys) {
     $newVal = $newJson.$key
-    $oldVal = if ($oldJson) { $oldJson.$key } else { $null }
+    if ($oldJson) { $oldVal = $oldJson.$key } else { $oldVal = $null }
 
     # Convert to JSON string for comparison and display (compact)
-    $newValStr = if ($null -ne $newVal) { ConvertTo-Json $newVal -Compress -Depth 10 } else { "*(null)*" }
-    $oldValStr = if ($null -ne $oldVal) { ConvertTo-Json $oldVal -Compress -Depth 10 } else { "*(null)*" }
+    if ($null -ne $newVal) {
+        $newValStr = ConvertTo-Json $newVal -Compress -Depth 10
+    } else {
+        $newValStr = "*(null)*"
+    }
+
+    if ($null -ne $oldVal) {
+        $oldValStr = ConvertTo-Json $oldVal -Compress -Depth 10
+    } else {
+        $oldValStr = "*(null)*"
+    }
 
     # Clean up JSON formatting for table display (escape pipes, etc if needed)
     # Basic markdown escaping for table
     $displayVal = $newValStr -replace '\|', '\|'
 
     $statusIcon = ""
-    $styleKey = "`$key`"
+    $styleKey = '`{0}`' -f $key
     
     # Check modification
     if ($oldJson -and $newValStr -ne $oldValStr) {
