@@ -1,0 +1,42 @@
+name: New App
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_url:
+        description: 'GitHub Repository URL (e.g. https://github.com/owner/repo)'
+        required: true
+        type: string
+      create_shortcut:
+        description: 'Create Start Menu Shortcut'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  new-app:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate Manifest
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./scripts/new-app.ps1 -GitHubUrl "${{ inputs.repo_url }}" -CreateShortcut:${{ inputs.create_shortcut }} -ReportPath "${{ runner.temp }}/pr_body.md"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Add new app from ${{ inputs.repo_url }}"
+          title: "feat: Add new app from ${{ inputs.repo_url }}"
+          body-path: ${{ runner.temp }}/pr_body.md
+          branch: "new-app-${{ github.run_id }}"
+          delete-branch: true
