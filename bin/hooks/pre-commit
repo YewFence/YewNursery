@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# 获取暂存区中我们关心的文件 (排除删除的文件)
+if ! git diff --cached --name-only --diff-filter=ACM -z | grep -z -q -E '\.(ps1|psm1|json|yml|yaml|md|txt|js)$'; then
+    exit 0
+fi
+
+echo "🔍 Running style check on staged files..."
+
+# 检测可用的 PowerShell 命令
+if command -v pwsh >/dev/null 2>&1; then
+    SHELL_CMD="pwsh"
+else
+    SHELL_CMD="powershell"
+fi
+
+# 调用修复脚本，但关闭自动修复 (-Fix $false)
+# 我们使用 ValueFromRemainingArguments 接收文件列表，所以直接跟在参数后面即可
+git diff --cached --name-only --diff-filter=ACM -z \
+    | grep -z -E '\.(ps1|psm1|json|yml|yaml|md|txt|js)$' \
+    | xargs -0 -r $SHELL_CMD -NoProfile -ExecutionPolicy Bypass -Command "& './bin/fix-style.ps1' -Fix \$false"
+
+rc=$?
+if [ $rc -ne 0 ]; then
+    echo ""
+    echo "❌ Style check failed!"
+    echo "   Please run: .\bin\fix-style.ps1"
+    echo "   Then: git add . && git commit"
+    exit 1
+fi
+
+exit 0
