@@ -4,12 +4,19 @@ param(
     [string[]]$TargetFiles
 )
 
-$Extensions = @(".ps1", ".psm1", ".json", ".yml", ".yaml", ".md", ".txt")
+$Extensions = @(".ps1", ".psm1", ".json", ".yml", ".yaml", ".md", ".txt", ".js")
 $Ignore = @(".git", "scoop_core")
 
 if ($TargetFiles) {
     $Files = $TargetFiles | ForEach-Object {
-        if (Test-Path $_ -PathType Leaf) { Get-Item $_ }
+        if (Test-Path $_ -PathType Leaf) {
+            Get-Item $_
+        } elseif (Test-Path $_ -PathType Container) {
+            Get-ChildItem -Path $_ -Recurse -File | Where-Object {
+                $_.FullName -notmatch "\\.git\\" -and
+                $_.FullName -notmatch "\\scoop_core\\"
+            }
+        }
     } | Where-Object {
         $ext = $_.Extension
         $Extensions -contains $ext
@@ -30,22 +37,19 @@ foreach ($File in $Files) {
 
     if (-not $Content) { continue }
 
-    # Check for trailing whitespace (per line)
-    if ($Content -match "(?m)[ \t]+$") {
-        Write-Host "Trailing whitespace found: $($File.FullName)" -ForegroundColor Yellow
+    # Normalize content: remove trailing whitespace per line, ensure single newline at end
+    $NewContent = $Content -replace "(?m)[ \t]+$", ""
+    $NewContent = $NewContent.TrimEnd() + [Environment]::NewLine
+
+    if ($Content -ne $NewContent) {
+        Write-Host "Style issues found (trailing whitespace or EOF): $($File.FullName)" -ForegroundColor Yellow
         $Failed = $true
 
         if ($Fix) {
-            $NewContent = $Content -replace "(?m)[ \t]+$", ""
-            # Ensure single newline at end
-            $NewContent = $NewContent.TrimEnd() + [Environment]::NewLine
             $NewContent | Set-Content -LiteralPath $File.FullName -NoNewline -Encoding UTF8
             Write-Host "  Fixed." -ForegroundColor Green
         }
     }
-
-    # Check for file ending with newline
-    # Note: Get-Content -Raw usually preserves it, but logic above .TrimEnd() + NewLine ensures it.
 }
 
 if ($Failed -and -not $Fix) {
