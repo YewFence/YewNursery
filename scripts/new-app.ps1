@@ -62,102 +62,7 @@ function Get-MatchingAsset {
     return $null
 }
 
-function Inspect-Archive {
-    param($FilePath, $RepoName)
-    
-    # Use 7z to list contents
-    # -slt: show technical information for each file
-    # We just need path and attributes ideally, but simple list is okay
-    # `7z l` output is table-like. `7z l -slt` is key-value.
-    # Let's use simple list and regex parsing for speed and simplicity.
-    
-    Write-Host "Inspecting archive: $FilePath"
-    
-    try {
-        $output = 7z l $FilePath
-    } catch {
-        Write-Warning "7zip failed to read archive. Skipping inspection."
-        return $null
-    }
 
-    # Parse 7z output to find files
-    # Typical line: "2023-01-01 12:00:00 ....A      1024      500  filename.exe"
-    # We just want the last column (filename) if it ends in .exe
-    
-    $exes = @()
-    $dirs = @()
-    
-    foreach ($line in $output) {
-        if ($line -match '\.exe$') {
-            # Extract filename (simplistic approach: take last token)
-            # Better: split by space, take remaining after date/time/attr/size/compressed/name
-            # But spaces in filenames make this hard.
-            # `7z l -slt` is safer.
-        }
-    }
-    
-    # Retry with -slt for robust parsing
-    $outputSlt = 7z l -slt $FilePath
-    
-    $currentPath = ""
-    $isDir = $false
-    
-    $fileList = @()
-    
-    foreach ($line in $outputSlt) {
-        if ($line -match '^Path = (.*)') {
-            $currentPath = $Matches[1]
-        } elseif ($line -match '^Folder = \+') {
-            $isDir = $true
-        } elseif ($line -eq "") {
-            # Block finished
-            if (-not $isDir -and $currentPath) {
-                $fileList += $currentPath
-            }
-            # Reset
-            $currentPath = ""
-            $isDir = $false
-        }
-    }
-    
-    $exeFiles = $fileList | Where-Object { $_ -match '\.exe$' }
-    Write-Host "Found $($exeFiles.Count) EXEs."
-
-    $bin = $null
-    $fallback = $false
-    
-    if ($exeFiles.Count -eq 1) {
-        $bin = $exeFiles[0]
-    } elseif ($exeFiles.Count -gt 1) {
-        # Heuristic 1: Match Repo Name
-        $bin = $exeFiles | Where-Object { $_ -match "$RepoName\.exe$" } | Select-Object -First 1
-        
-        # Heuristic 2: Root level exe
-        if (-not $bin) {
-            $rootExes = $exeFiles | Where-Object { $_ -notmatch '[/\\]' }
-            if ($rootExes.Count -eq 1) {
-                $bin = $rootExes[0]
-                $fallback = $true
-            }
-        }
-    }
-    
-    # Basic Extract Dir logic: check if all files start with the same directory
-    $extractDir = $null
-    if ($fileList.Count -gt 0) {
-        $firstSlash = $fileList[0].IndexOfAny(@('/', '\'))
-        if ($firstSlash -gt 0) {
-            $potentialRoot = $fileList[0].Substring(0, $firstSlash)
-            $allMatch = $true
-            foreach ($f in $fileList) {
-                if (-not $f.StartsWith($potentialRoot)) { $allMatch = $false; break }
-            }
-            if ($allMatch) { $extractDir = $potentialRoot }
-        }
-    }
-
-    return @{ Bin = $bin; Fallback = $fallback; ExtractDir = $extractDir }
-}
 
 # --- Main Logic ---
 
@@ -196,14 +101,24 @@ $Hash = (Get-FileHash $TempFile -Algorithm SHA256).Hash
 # 6. Inspect (Bin/ExtractDir)
 $BinName = $null
 $ExtractDirName = $null
-$BinFallback = $false
+$FileTree = ""
+$CandidatesList = @()
 
 if ($Asset.name -match "\.(zip|7z|rar|gz|tgz)$") {
-    $info = Inspect-Archive -FilePath $TempFile -RepoName $Repo
-    if ($info) {
-        $BinName = $info.Bin
-        $ExtractDirName = $info.ExtractDir
-        $BinFallback = $info.Fallback
+    $FindBinScript = Join-Path $PSScriptRoot "find-bin.ps1"
+    Write-Host "Running analysis script: $FindBinScript"
+    
+    if (Test-Path $FindBinScript) {
+        $ScanResult = & $FindBinScript -FilePath $TempFile -AppName $Repo
+        
+        if ($ScanResult) {
+            $BinName = $ScanResult.Recommended
+            $ExtractDirName = $ScanResult.ExtractDir
+            $FileTree = $ScanResult.Tree
+            $CandidatesList = $ScanResult.Candidates
+        }
+    } else {
+        Write-Warning "find-bin.ps1 script not found at $FindBinScript"
     }
 } elseif ($Asset.name -match "\.exe$") {
     $BinName = $Asset.name
@@ -299,7 +214,19 @@ Write-Host "Manifest saved to $ManifestPath"
 
 # 8. Report
 $BinStatus = if ($BinName) { "⚠️ Suggested" } else { "⭕ Missing" }
-$BinValue = if ($BinName) { "``$BinName``" + $(if ($BinFallback) { " (Fallback)" } else { "" }) } else { "Manual fill" }
+$BinValue = if ($BinName) { "``$BinName``" } else { "Manual fill" }
+
+# Format candidates for report
+$CandidatesStr = ""
+if ($CandidatesList -and $CandidatesList.Count -gt 0) {
+    $c = 1
+    foreach ($cand in $CandidatesList) {
+        $CandidatesStr += "$c. $cand`n"
+        $c++
+    }
+} else {
+    $CandidatesStr = "No candidates found."
+}
 
 $Report = @"
 ## Automatic App Manifest Generation
@@ -319,6 +246,15 @@ $Report = @"
 | ``bin`` | $BinStatus | $BinValue |
 | ``shortcuts`` | $(if ($CreateShortcutBool -and $BinName) { "✅ Generated" } else { "⭕ Missing" }) | |
 | ``checkver`` | ✅ Configured | ``github`` |
+
+### File Structure Analysis
+
+\`\`\`text
+$FileTree
+\`\`\`
+
+**Candidates found**:
+$CandidatesStr
 
 ### ChatOps Available
 - `/set-bin "app.exe"` or `/set-bin "app.exe" "alias"`
