@@ -26,18 +26,18 @@ if ($line -match '^(\/[^\s]+)\s+(.*)$') {
 
 if ($cmd) {
     Write-Host "Executing: $cmd $argsLine"
-    
+
     # 1. Capture OLD state
     $manifestPath = $null
     $oldContent = ""
     try {
-        # Try to resolve manifest path similar to how pr-chatops does, 
+        # Try to resolve manifest path similar to how pr-chatops does,
         # but here we just do a quick guess for before-state or let pr-chatops handle validation.
         # Ideally, we should unify this logic.
         # For now, let's find the changed JSON file first.
         $files = git diff --name-only origin/main...HEAD | Where-Object { $_ -match '^bucket\\.*\.json$' -or $_ -match '^bucket/.*\.json$' }
         if ($files -is [array]) { $files = $files[0] }
-        
+
         if ($files -and (Test-Path $files)) {
             $manifestPath = $files
             $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
@@ -61,11 +61,11 @@ if ($cmd) {
         Write-Host "Generating report for $manifestPath..."
         try {
              # We pass the OLD content as a string.
-             # Note: PowerShell argument passing of multiline strings can be tricky, 
+             # Note: PowerShell argument passing of multiline strings can be tricky,
              # so we might pass it via file or Base64 if it was complex, but direct string usually works for JSON.
              # Alternatively, we just pass the path and let the report script read the NEW content,
              # but we need to pass the OLD content somehow.
-             
+
              # Let's save old content to a temp file to be safe
              $oldFile = "old_manifest.tmp"
              if ($oldContent) {

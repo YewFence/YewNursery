@@ -70,7 +70,7 @@ function Get-MatchingAsset {
     # 4. Select by extension priority
     # Added explicit support for more formats thanks to 7zip
     $priority = @("zip", "7z", "tar.gz", "tgz", "rar", "exe", "msi")
-    
+
     foreach ($ext in $priority) {
         $match = $selectionPool | Where-Object { $_.name -match "\.$ext$" } | Select-Object -First 1
         if ($match) { return $match }
@@ -124,10 +124,10 @@ $CandidatesList = @()
 if ($Asset.name -match "\.(zip|7z|rar|gz|tgz)$") {
     $FindBinScript = Join-Path $PSScriptRoot "find-bin.ps1"
     Write-Host "Running analysis script: $FindBinScript"
-    
+
     if (Test-Path $FindBinScript) {
         $ScanResult = & $FindBinScript -FilePath $TempFile -AppName $Repo
-        
+
         if ($ScanResult) {
             $BinName = $ScanResult.Recommended
             $ExtractDirName = $ScanResult.ExtractDir
@@ -180,7 +180,7 @@ $jqFilter = @'
 # Add optional fields dynamically
 if ($BinName) {
     $jqFilter += ' | .bin = $bin'
-    
+
     if ($CreateShortcutBool) {
         # Shortcuts is [[bin, repo]]
         $jqFilter += ' | .shortcuts = [[$bin, $repo]]'

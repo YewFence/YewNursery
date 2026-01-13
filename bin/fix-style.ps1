@@ -1,15 +1,26 @@
-﻿param(
-    [switch]$Fix = $true
+param(
+    [switch]$Fix = $true,
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$TargetFiles
 )
 
 $Extensions = @(".ps1", ".psm1", ".json", ".yml", ".yaml", ".md", ".txt")
 $Ignore = @(".git", "scoop_core")
 
-$Files = Get-ChildItem -Path "$PSScriptRoot/.." -Recurse -File | Where-Object {
-    $ext = $_.Extension
-    $Extensions -contains $ext -and
-    $_.FullName -notmatch "\\.git\\" -and
-    $_.FullName -notmatch "\\scoop_core\\"
+if ($TargetFiles) {
+    $Files = $TargetFiles | ForEach-Object {
+        if (Test-Path $_ -PathType Leaf) { Get-Item $_ }
+    } | Where-Object {
+        $ext = $_.Extension
+        $Extensions -contains $ext
+    }
+} else {
+    $Files = Get-ChildItem -Path "$PSScriptRoot/.." -Recurse -File | Where-Object {
+        $ext = $_.Extension
+        $Extensions -contains $ext -and
+        $_.FullName -notmatch "\\.git\\" -and
+        $_.FullName -notmatch "\\scoop_core\\"
+    }
 }
 
 $Failed = $false

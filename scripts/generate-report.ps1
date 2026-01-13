@@ -49,7 +49,7 @@ foreach ($key in $keys) {
 
     $statusIcon = ""
     $styleKey = '`{0}`' -f $key
-    
+
     # Check modification
     if ($oldJson -and $newValStr -ne $oldValStr) {
         $statusIcon = "✨ **Updated**"

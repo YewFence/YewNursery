@@ -15,17 +15,17 @@ $BinDirs = @("bin", "dist")
 
 function Get-Tree {
     param($Paths, $MaxDepth=3)
-    
+
     # Build a simple nested hashtable structure
     $root = @{}
-    
+
     foreach ($path in $Paths) {
         $parts = $path -split '[/\\]'
         $current = $root
-        
+
         # Only go up to MaxDepth
         $limit = [Math]::Min($parts.Count, $MaxDepth)
-        
+
         for ($i = 0; $i -lt $limit; $i++) {
             $part = $parts[$i]
             if (-not $current.ContainsKey($part)) {
@@ -38,7 +38,7 @@ function Get-Tree {
     # Render tree
     $sb = [System.Text.StringBuilder]::new()
     $sb.AppendLine("📂 (root)")
-    
+
     Render-Node -Node $root -Prefix "" -StringBuilder $sb -Last $true
 
     return $sb.ToString()
@@ -46,24 +46,24 @@ function Get-Tree {
 
 function Render-Node {
     param($Node, $Prefix, $StringBuilder, $Last)
-    
+
     $keys = $Node.Keys | Sort-Object
     $count = $keys.Count
     $i = 0
-    
+
     foreach ($key in $keys) {
         $i++
         $isLast = ($i -eq $count)
-        
+
         $marker = if ($isLast) { "└── " } else { "├── " }
         $childPrefix = if ($isLast) { "    " } else { "│   " }
-        
+
         # Check if it looks like a file (has extension) or dir
         # This is a heuristic since we only have paths
         $icon = if ($key -match "\.") { "📄" } else { "📂" }
-        
+
         $StringBuilder.AppendLine("$Prefix$marker$icon $key")
-        
+
         if ($Node[$key].Count -gt 0) {
             Render-Node -Node $Node[$key] -Prefix "$Prefix$childPrefix" -StringBuilder $StringBuilder -Last $isLast
         }
@@ -108,15 +108,15 @@ foreach ($line in $output) {
             if (-not $isDir) {
                 # Check extension
                 $ext = [System.IO.Path]::GetExtension($currentPath).ToLower()
-                
+
                 # For the tree, we want to show executable files AND directory structure
                 # But we can't easily distinguish empty intermediate dirs from the 7z output style if we just list files
                 # However, for the user request, they want to see "structure"
                 # We will collect ALL executables for candidate analysis
                 # And collecting paths for the tree.
-                # To keep tree clean, maybe we only add Executables to the tree? 
+                # To keep tree clean, maybe we only add Executables to the tree?
                 # The user asked: "list all bat,cmd,ps1,exe inside a 3-level folder structure"
-                
+
                 if ($ExecExtensions -contains $ext) {
                     $fileList += $currentPath
                     $rawPaths += $currentPath
@@ -143,12 +143,12 @@ if ($fileList.Count -eq 0) {
 # 2. Analyze Structure for ExtractDir (Common Prefix)
 $extractDir = $null
 if ($fileList.Count -gt 0) {
-    # We need to look at ALL files for ExtractDir logic, not just exes, 
+    # We need to look at ALL files for ExtractDir logic, not just exes,
     # but strictly speaking Scoop handles this based on top-level content.
     # For simplicity, let's assume if all EXEs are in a subdir, likely everything is.
     # A robust check needs all files, but let's stick to the list we have or re-parse everything?
     # Re-parsing is slow. Let's approximate from the EXE paths.
-    
+
     $firstSlash = $fileList[0].IndexOfAny(@('/', '\'))
     if ($firstSlash -gt 0) {
         $potentialRoot = $fileList[0].Substring(0, $firstSlash)
@@ -169,21 +169,21 @@ foreach ($path in $fileList) {
     $name = [System.IO.Path]::GetFileNameWithoutExtension($path)
     $ext = [System.IO.Path]::GetExtension($path).ToLower()
     $dir = [System.IO.Path]::GetDirectoryName($path)
-    
+
     # Rule 1: Blacklist (Strong reject)
     $isBlacklisted = $false
     foreach ($bad in $Blacklist) {
-        if ($name -match $bad) { 
-            $score -= 100 
+        if ($name -match $bad) {
+            $score -= 100
             $isBlacklisted = $true
-            break 
+            break
         }
     }
-    
+
     # Rule 2: Extension Priority
     if ($ext -eq ".exe") { $score += 10 }
     elseif ($ext -eq ".cmd" -or $ext -eq ".bat") { $score += 5 }
-    
+
     # Rule 3: Directory Preference
     if ([string]::IsNullOrWhiteSpace($dir) -or $dir -eq ".") {
         $score += 10 # Root is good
@@ -193,10 +193,10 @@ foreach ($path in $fileList) {
             if ($dir -match $goodDir) { $score += 5 }
         }
     }
-    
+
     # Rule 4: Name Match (The most important)
     if ($normalizedAppName) {
-        if ($name -eq $normalizedAppName) { 
+        if ($name -eq $normalizedAppName) {
             $score += 50 # Jackpot
         } elseif ($name -match "^$normalizedAppName" -or $name -match "$normalizedAppName$") {
             $score += 20 # Partial match
@@ -204,7 +204,7 @@ foreach ($path in $fileList) {
             $score += 10 # Contains
         }
     }
-    
+
     # Create object
     $candidates += [PSCustomObject]@{
         Path = $path

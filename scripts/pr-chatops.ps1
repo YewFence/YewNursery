@@ -25,7 +25,7 @@ function Run-Jq {
     )
 
     $TempFile = "$Path.tmp"
-    
+
     # Construct args list for jq
     $jqArgs = @()
     if ($Arg1) { $jqArgs += "--arg", "a1", $Arg1 }
@@ -36,11 +36,11 @@ function Run-Jq {
     Write-Host "Running jq filter: $Filter"
     # Execute jq using Start-Process or direct call depending on shell, but direct call is easier in pwsh
     # We pipeline input/output to avoid shell encoding issues if possible, but jq takes file arg nicely.
-    
+
     # Run jq and capture output to temp file
     # Note: We use Invoke-Expression or & to run it.
     # To avoid quoting hell, we pass arguments carefully.
-    
+
     $proc = Start-Process -FilePath "jq" -ArgumentList ($jqArgs) -NoNewWindow -PassThru -RedirectStandardOutput $TempFile
     $proc.WaitForExit()
 
@@ -94,7 +94,7 @@ try {
             if ($parsedArgs.Count -eq 1) {
                 # Usage: /set-shortcut <name> (Auto-detect target)
                 $shortcutName = $parsedArgs[0]
-                
+
                 # Read manifest to find bin
                 try {
                     $json = Get-Content $manifestPath -Raw | ConvertFrom-Json
@@ -149,14 +149,14 @@ try {
             # Dynamic key update: .[$key] = $value
             # Note: We need to pass key as a separate arg to be safe
             # But Run-Jq helper only takes 2 args. Let's customize for this case.
-            
+
             $key = $parsedArgs[0]
             $val = $parsedArgs[1]
-            
+
             # Use specific filter for this
-            $filter = ".[""$key""] = `$a1" 
+            $filter = ".[""$key""] = `$a1"
             # Note: PowerShell interpolation for $key, but $a1 is jq variable
-            
+
             Run-Jq -Path $manifestPath -Filter ".[`"$key`"] = `$a1" -Arg1 $val
             Write-Host "Set $key = $val"
         }
