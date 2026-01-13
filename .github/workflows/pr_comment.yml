@@ -17,7 +17,7 @@ permissions:
 name: Commented Pull Request
 
 jobs:
-  # Existing handler for /verify
+  # Existing handler for /verify (Keep on Windows for compatibility with checkver if needed)
   pullRequestHandler:
     name: PullRequestHandler
     runs-on: windows-latest
@@ -50,9 +50,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # New ChatOps handler
-  check-syntax:
-    name: Check Syntax
+  # Refactored ChatOps handler running on Linux
+  chatops:
+    name: ChatOps
     runs-on: ubuntu-latest
     if: |
       (github.event.issue.pull_request &&
@@ -83,12 +83,13 @@ jobs:
             core.setOutput('head_repo', pr.head.repo.full_name);
             core.setOutput('base_ref', pr.base.ref);
 
-      - name: Checkout PR (for scripts)
+      - name: Checkout PR
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ steps.pr_info.outputs.head_repo }}
           ref: ${{ steps.pr_info.outputs.head_ref }}
-          sparse-checkout: scripts
+          fetch-depth: 2
 
       - name: Acknowledge Command
         uses: actions/github-script@v7
@@ -96,12 +97,14 @@ jobs:
           REACTION_CONTENT: eyes
         with:
           script: |
-            if (context.eventName === 'workflow_dispatch') {
-              console.log('Skipping acknowledgment reaction for workflow_dispatch');
-              return;
+            if (context.eventName === 'workflow_dispatch') return;
+            // Simple reaction without external script dependency if possible, or use existing script
+            try {
+                const script = require('./scripts/github/add-reaction.js');
+                await script({github, context, core});
+            } catch (e) {
+                console.log('Failed to add reaction or script not found:', e);
             }
-            const script = require('./scripts/github/add-reaction.js');
-            await script({github, context, core});
 
       - name: Validate Command Syntax
         uses: actions/github-script@v7
@@ -112,18 +115,16 @@ jobs:
             const script = require('./scripts/github/validate-syntax.js');
             
             if (context.eventName === 'workflow_dispatch') {
-                // Mock payload
+                // Mock payload for syntax validator
                 context.payload.comment = { 
                     body: process.env.COMMENT_BODY,
                     id: 1 
                 };
-                
-                // Mock context.issue
+                // Mock context.issue for issue_number access
                 Object.defineProperty(context, 'issue', {
                     get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
                 });
-
-                // Mock reactions API
+                // Mock reactions for dispatch
                 github.rest.reactions.createForIssueComment = async (args) => {
                     console.log(`[Mock] Adding reaction ${args.content} to comment ${args.comment_id}`);
                     return { data: {} };
@@ -131,98 +132,42 @@ jobs:
             }
             await script({github, context, core});
 
-  chatops:
-    name: ChatOps
-    needs: check-syntax
-    runs-on: windows-latest
-    steps:
-      - name: Get PR Info
-        id: pr_info
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = context.issue.number || context.payload.inputs.pr_number;
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
-            core.setOutput('head_ref', pr.head.ref);
-            core.setOutput('head_repo', pr.head.repo.full_name);
-            core.setOutput('base_ref', pr.base.ref);
-
-      - name: Checkout PR
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ steps.pr_info.outputs.head_repo }}
-          ref: ${{ steps.pr_info.outputs.head_ref }}
-          fetch-depth: 0
-
-      - name: Acknowledge Processing
-        uses: actions/github-script@v7
-        env:
-          REACTION_CONTENT: eyes
-        with:
-          script: |
-            if (context.eventName === 'workflow_dispatch') {
-              console.log('Skipping acknowledgment reaction for workflow_dispatch');
-              return;
-            }
-            const script = require('./scripts/github/add-reaction.js');
-            try { await script({github, context, core}); } catch(e) {}
-
-      - name: Fetch Base Branch
-        run: |
-          git remote add upstream https://github.com/${{ github.repository }}
-          git fetch upstream ${{ steps.pr_info.outputs.base_ref }}
-
       - name: Checkout Scoop Core (for formatjson)
         uses: actions/checkout@v4
         with:
           repository: ScoopInstaller/Scoop
           path: scoop_core
 
-      - name: Install Scoop
-        shell: pwsh
-        run: |
-          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Configure Git
-        run: |
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-
-      - name: Install Dependencies
-        shell: pwsh
-        run: |
-          scoop install jq 7zip
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: bucket/*.json
 
       - name: Process Command
-        id: process_cmd
         shell: pwsh
         env:
-          SCOOP_HOME: ${{ github.workspace }}\scoop_core
+          SCOOP_HOME: ${{ github.workspace }}/scoop_core
           COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
-          CHAT_BASE_REF: upstream/${{ steps.pr_info.outputs.base_ref }}
+          TARGET_MANIFEST: ${{ steps.changed-files.outputs.all_changed_files }}
         run: |
+          chmod +x ./scripts/invoke-chatops.ps1
           ./scripts/invoke-chatops.ps1
 
       - name: Format JSON
         shell: pwsh
         env:
-          SCOOP_HOME: ${{ github.workspace }}\scoop_core
-        run: |
-          ./bin/formatjson.ps1
+          SCOOP_HOME: ${{ github.workspace }}/scoop_core
+        run: ./bin/formatjson.ps1
 
-      - name: Commit and Push
-        run: |
-          git add bucket/*.json
-          # Check if there are changes
-          git diff --staged --quiet || git commit -m "chore: update manifest via chatops"
-          git push
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update manifest via chatops"
+          file_pattern: 'bucket/*.json'
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
 
       - name: Report Success
         if: success()
@@ -230,6 +175,7 @@ jobs:
         with:
           script: |
             if (context.eventName === 'workflow_dispatch') {
+                // Mock for reporting
                 context.payload.comment = { id: 1 };
                 Object.defineProperty(context, 'issue', {
                     get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
@@ -245,6 +191,7 @@ jobs:
         with:
           script: |
             if (context.eventName === 'workflow_dispatch') {
+                // Mock for reporting
                 context.payload.comment = { id: 1 };
                 Object.defineProperty(context, 'issue', {
                     get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
