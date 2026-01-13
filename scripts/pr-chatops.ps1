@@ -11,7 +11,8 @@ $ErrorActionPreference = 'Stop'
 if (-not $ManifestPath) {
     if ($env:TARGET_MANIFEST) {
         $ManifestPath = $env:TARGET_MANIFEST
-    } else {
+    }
+    else {
         Write-Error "ManifestPath argument or TARGET_MANIFEST environment variable is required."
         exit 1
     }
@@ -44,21 +45,25 @@ function Parse-Args {
             if ($char -eq $quoteChar) {
                 # End quote
                 $inQuote = $false
-            } else {
+            }
+            else {
                 $current += $char
             }
-        } else {
+        }
+        else {
             if ($char -eq '"' -or $char -eq "'") {
                 # Start quote
                 $inQuote = $true
                 $quoteChar = $char
-            } elseif ($char -match '\s') {
+            }
+            elseif ($char -match '\s') {
                 # Whitespace outside quotes
                 if ($current) {
                     $args += $current
                     $current = ''
                 }
-            } else {
+            }
+            else {
                 $current += $char
             }
         }
@@ -99,14 +104,16 @@ try {
         "/set-bin" {
             if ($parsedArgs.Count -eq 1) {
                 # .bin = "value"
-                Update-Manifest { param($j) $j.bin = $parsedArgs[0] }
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue $parsedArgs[0] -Force }
                 Write-Host "Set bin to: $($parsedArgs[0])"
-            } elseif ($parsedArgs.Count -eq 2) {
+            }
+            elseif ($parsedArgs.Count -eq 2) {
                 # .bin = [["exe", "alias"]]
                 # Note: We create nested array structure
-                Update-Manifest { param($j) $j.bin = @( @($parsedArgs[0], $parsedArgs[1]) ) }
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue @( @($parsedArgs[0], $parsedArgs[1]) ) -Force }
                 Write-Host "Set bin to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-            } else {
+            }
+            else {
                 Throw "Usage: /set-bin <exe> [alias]"
             }
         }
@@ -124,11 +131,13 @@ try {
                 if ($currentJson.bin) {
                     if ($currentJson.bin -is [string]) {
                         $target = $currentJson.bin
-                    } elseif ($currentJson.bin -is [array] -and $currentJson.bin.Count -gt 0) {
+                    }
+                    elseif ($currentJson.bin -is [array] -and $currentJson.bin.Count -gt 0) {
                         $first = $currentJson.bin[0]
                         if ($first -is [string]) {
                             $target = $first
-                        } elseif ($first -is [array] -and $first.Count -gt 0) {
+                        }
+                        elseif ($first -is [array] -and $first.Count -gt 0) {
                             $target = $first[0]
                         }
                     }
@@ -139,27 +148,31 @@ try {
                 }
                 Write-Host "Auto-detected shortcut target: $target"
 
-            } elseif ($parsedArgs.Count -eq 2) {
+            }
+            elseif ($parsedArgs.Count -eq 2) {
                 $target = $parsedArgs[0]
                 $shortcutName = $parsedArgs[1]
-            } else {
+            }
+            else {
                 Throw "Usage: /set-shortcut <name> (auto-bin) OR /set-shortcut <target> <name>"
             }
 
             # .shortcuts = [["exe", "name"]]
-            Update-Manifest { param($j) $j.shortcuts = @( @($target, $shortcutName) ) }
+            Update-Manifest { param($j) $j | Add-Member -NotePropertyName "shortcuts" -NotePropertyValue @( @($target, $shortcutName) ) -Force }
             Write-Host "Set shortcut: $target -> $shortcutName"
         }
         "/set-persist" {
-             if ($parsedArgs.Count -eq 1) {
+            if ($parsedArgs.Count -eq 1) {
                 # .persist = "value"
-                Update-Manifest { param($j) $j.persist = $parsedArgs[0] }
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue $parsedArgs[0] -Force }
                 Write-Host "Set persist to: $($parsedArgs[0])"
-            } elseif ($parsedArgs.Count -eq 2) {
+            }
+            elseif ($parsedArgs.Count -eq 2) {
                 # .persist = [["data", "alias"]]
-                Update-Manifest { param($j) $j.persist = @( @($parsedArgs[0], $parsedArgs[1]) ) }
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue @( @($parsedArgs[0], $parsedArgs[1]) ) -Force }
                 Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-            } else {
+            }
+            else {
                 Throw "Usage: /set-persist <file> [alias]"
             }
         }
@@ -167,7 +180,7 @@ try {
             if ($parsedArgs.Count -lt 2) { Throw "Usage: /set-key <key> <value>" }
             $key = $parsedArgs[0]
             # Join all remaining args to support multi-word values
-            $val = $parsedArgs[1..($parsedArgs.Count-1)] -join ' '
+            $val = $parsedArgs[1..($parsedArgs.Count - 1)] -join ' '
 
             if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
                 Throw "Invalid key format. Keys must be alphanumeric with underscores."
@@ -178,7 +191,8 @@ try {
                 try {
                     $val = $val | ConvertFrom-Json
                     Write-Host "Parsed value as JSON: $($val | ConvertTo-Json -Compress)"
-                } catch {
+                }
+                catch {
                     Write-Host "Keeping value as string (JSON parse failed): $val"
                 }
             }
@@ -187,7 +201,8 @@ try {
                 param($j) 
                 if ($j.PSObject.Properties.Match($key).Count) {
                     $j.$key = $val
-                } else {
+                }
+                else {
                     $j | Add-Member -NotePropertyName $key -NotePropertyValue $val
                 }
             }
@@ -200,7 +215,8 @@ try {
             try {
                 $json = $content | ConvertFrom-Json
                 Write-Host ($json | ConvertTo-Json -Depth 10)
-            } catch {
+            }
+            catch {
                 Write-Host $content
             }
         }
@@ -208,7 +224,8 @@ try {
             Throw "Unknown command: $Command"
         }
     }
-} catch {
+}
+catch {
     Write-Error $_.Exception.Message
     exit 1
 }
