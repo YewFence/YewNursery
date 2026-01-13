@@ -82,6 +82,8 @@ jobs:
             core.setOutput('head_ref', pr.head.ref);
             core.setOutput('head_repo', pr.head.repo.full_name);
             core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('base_sha', pr.base.sha);
 
       - name: Checkout PR
         uses: actions/checkout@v4
@@ -143,13 +145,35 @@ jobs:
         uses: tj-actions/changed-files@v41
         with:
           files: bucket/*.json
+          sha: ${{ steps.pr_info.outputs.head_sha }}
+          base_sha: ${{ steps.pr_info.outputs.base_sha }}
+
+      - name: Resolve Target Manifest
+        id: resolve_manifest
+        shell: pwsh
+        env:
+          ALL_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          $files = $env:ALL_FILES -split ' ' | Where-Object { 
+            $_ -match '\.json$' -and 
+            $_ -notmatch '\.example\.json$' -and 
+            $_ -notmatch '\.template\.json$' 
+          }
+          if ($files.Count -eq 0) {
+            Write-Error "No valid manifest file found in changes."
+            exit 1
+          }
+          if ($files.Count -gt 1) {
+            Write-Error "Multiple manifest files found: $($files -join ', '). Please modify only one manifest."
+            exit 1
+          }
+          "TARGET_MANIFEST=$($files[0])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Process Command
         shell: pwsh
         env:
           SCOOP_HOME: ${{ github.workspace }}/scoop_core
           COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
-          TARGET_MANIFEST: ${{ steps.changed-files.outputs.all_changed_files }}
         run: |
           chmod +x ./scripts/invoke-chatops.ps1
           ./scripts/invoke-chatops.ps1

@@ -6,19 +6,14 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
-. "$PSScriptRoot/utils.ps1"
 
 # Resolve Manifest Path if not provided
 if (-not $ManifestPath) {
     if ($env:TARGET_MANIFEST) {
         $ManifestPath = $env:TARGET_MANIFEST
     } else {
-        try {
-            $ManifestPath = Get-ChangedManifestPath
-        } catch {
-            Write-Error "Could not determine manifest path: $_"
-            exit 1
-        }
+        Write-Error "ManifestPath argument or TARGET_MANIFEST environment variable is required."
+        exit 1
     }
 }
 
