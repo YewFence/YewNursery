@@ -27,12 +27,6 @@ function Render-Template {
     return $Content
 }
 
-function Get-Architecture {
-    # Helper to create architecture object safely
-    param($Url, $Hash)
-    return @{ "64bit" = @{ "url" = $Url; "hash" = $Hash } }
-}
-
 function Get-MatchingAsset {
     param ($Assets)
 

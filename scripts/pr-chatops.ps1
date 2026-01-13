@@ -5,18 +5,7 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
-
-function Get-ManifestPath {
-    $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
-    if (-not $files) {
-        Write-Error "No manifest file found in the changes."
-    }
-    if ($files -is [array] -and $files.Count -gt 1) {
-        Write-Error "Multiple manifest files found in the changes. Please modify one manifest per PR."
-    }
-    if ($files -is [array]) { return $files[0] }
-    return $files
-}
+. "$PSScriptRoot/utils.ps1"
 
 # Helper wrapper for jq
 function Run-Jq {
@@ -77,7 +66,7 @@ function Parse-Args {
 try {
     Write-Host "Processing command: $Command with args: $ArgsLine"
 
-    $manifestPath = Get-ManifestPath
+    $manifestPath = Get-ChangedManifestPath
     Write-Host "Target manifest: $manifestPath"
 
     $parsedArgs = Parse-Args $ArgsLine

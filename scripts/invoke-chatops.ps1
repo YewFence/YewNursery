@@ -2,6 +2,7 @@
 # Wrapper script to invoke pr-chatops.ps1 based on Comment Body
 
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot/utils.ps1"
 
 $body = $env:COMMENT_BODY
 if (-not $body) {
@@ -35,14 +36,8 @@ if ($cmd) {
         # but here we just do a quick guess for before-state or let pr-chatops handle validation.
         # Ideally, we should unify this logic.
         # For now, let's find the changed JSON file first.
-        $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
-        if ($files -is [array] -and $files.Count -gt 1) {
-            throw "Multiple manifest files found in the changes. Please modify one manifest per PR."
-        }
-        if ($files -is [array]) { $files = $files[0] }
-
-        if ($files -and (Test-Path $files)) {
-            $manifestPath = $files
+        $manifestPath = Get-ChangedManifestPath
+        if ($manifestPath -and (Test-Path $manifestPath)) {
             $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
         }
     } catch {

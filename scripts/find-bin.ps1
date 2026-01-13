@@ -95,8 +95,6 @@ $rawPaths = @() # For tree generation
 
 $currentPath = ""
 $isDir = $false
-$currentAttrib = ""
-
 foreach ($line in $output) {
     if ($line -match '^Path = (.*)') {
         $currentPath = $Matches[1]

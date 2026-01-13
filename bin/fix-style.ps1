@@ -6,6 +6,7 @@ param(
 
 $Extensions = @(".ps1", ".psm1", ".json", ".yml", ".yaml", ".md", ".txt", ".js")
 $Ignore = @(".git", "scoop_core")
+$ignoreRegex = ($Ignore | ForEach-Object { "\\{0}\\" -f [regex]::Escape($_) }) -join "|"
 
 if ($TargetFiles) {
     $Files = $TargetFiles | ForEach-Object {
@@ -13,8 +14,7 @@ if ($TargetFiles) {
             Get-Item $_
         } elseif (Test-Path $_ -PathType Container) {
             Get-ChildItem -Path $_ -Recurse -File | Where-Object {
-                $_.FullName -notmatch "\\.git\\" -and
-                $_.FullName -notmatch "\\scoop_core\\"
+                $_.FullName -notmatch $ignoreRegex
             }
         }
     } | Where-Object {
@@ -25,8 +25,7 @@ if ($TargetFiles) {
     $Files = Get-ChildItem -Path "$PSScriptRoot/.." -Recurse -File | Where-Object {
         $ext = $_.Extension
         $Extensions -contains $ext -and
-        $_.FullName -notmatch "\\.git\\" -and
-        $_.FullName -notmatch "\\scoop_core\\"
+        $_.FullName -notmatch $ignoreRegex
     }
 }
 
