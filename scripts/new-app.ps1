@@ -274,6 +274,14 @@ $Report = @"
 3. $(if ($CreateShortcutBool -and $Bin) { "Verify generated shortcuts." } else { "Add ``shortcuts`` if this is a GUI app." })
 4. Add ``persist`` if the app creates config files in its directory.
 
+### ChatOps Available
+You can modify this manifest by commenting on this PR with the following commands:
+- `/set-bin "app.exe"` or `/set-bin "app.exe" "alias"`: Set the `bin` field.
+- `/add-bin "tool.exe"` or `/add-bin "tool.exe" "tool-alias"`: Add an item to the `bin` field.
+- `/add-shortcut "app.exe" "App Name"`: Add a shortcut.
+- `/set-key "description" "New description"`: Set any field.
+
 "@
+
 
 $Report | Set-Content $ReportPath
