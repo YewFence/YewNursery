@@ -10,6 +10,23 @@ $ErrorActionPreference = "Stop"
 
 # --- Helpers ---
 
+function Render-Template {
+    param(
+        [string]$Path,
+        [hashtable]$Data
+    )
+    if (-not (Test-Path $Path)) { Throw "Template not found: $Path" }
+    # Use UTF8 encoding to match standard MD files
+    $Content = Get-Content -Path $Path -Raw -Encoding UTF8
+    foreach ($key in $Data.Keys) {
+        $Token = "{{" + $key + "}}"
+        $Value = if ($Data[$key]) { $Data[$key] } else { "" }
+        # Simple string replacement
+        $Content = $Content.Replace($Token, $Value)
+    }
+    return $Content
+}
+
 function Get-Architecture {
     # Helper to create architecture object safely
     param($Url, $Hash)
@@ -228,39 +245,26 @@ if ($CandidatesList -and $CandidatesList.Count -gt 0) {
     $CandidatesStr = "No candidates found."
 }
 
-$Report = @"
-## Automatic App Manifest Generation
+$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "✅ Generated" } else { "⭕ Missing" }
 
-**Repository**: [$Owner/$Repo]($Homepage)
-**Version**: $Version
-**License**: $License
-**Description**: $Description
+$TemplateData = @{
+    "Owner"          = $Owner
+    "Repo"           = $Repo
+    "Homepage"       = $Homepage
+    "Version"        = $Version
+    "License"        = $License
+    "Description"    = $Description
+    "Hash"           = $Hash
+    "BinStatus"      = $BinStatus
+    "BinValue"       = $BinValue
+    "ShortcutStatus" = $ShortcutStatus
+    "FileTree"       = $FileTree
+    "CandidatesStr"  = $CandidatesStr
+}
 
-### Detection Status
+$TemplatePath = Join-Path $PSScriptRoot "templates\new-app-report.md"
+Write-Host "Rendering template from: $TemplatePath"
 
-| Field | Status | Value |
-|-------|--------|-------|
-| ``version`` | ✅ Detected | $Version |
-| ``architecture`` | ✅ Detected | 64bit |
-| ``hash`` | ✅ Calculated | $Hash |
-| ``bin`` | $BinStatus | $BinValue |
-| ``shortcuts`` | $(if ($CreateShortcutBool -and $BinName) { "✅ Generated" } else { "⭕ Missing" }) | |
-| ``checkver`` | ✅ Configured | ``github`` |
+$Report = Render-Template -Path $TemplatePath -Data $TemplateData
 
-### File Structure Analysis
-
-\`\`\`text
-$FileTree
-\`\`\`
-
-**Candidates found**:
-$CandidatesStr
-
-### ChatOps Available
-- `/set-bin "app.exe"` or `/set-bin "app.exe" "alias"`
-- `/set-shortcut "app.exe" "Name"`
-- `/set-persist "data"`
-- `/set-key "description" "New desc"`
-"@
-
-$Report | Set-Content $ReportPath
+$Report | Set-Content $ReportPath -Encoding UTF8
