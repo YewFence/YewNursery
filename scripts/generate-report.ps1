@@ -50,14 +50,14 @@ $rows = foreach ($key in $keys) {
 
     # Check modification
     if ($oldJson -and $newValStr -ne $oldValStr) {
-        $statusIcon = "✨ **Updated**"
+        $statusIcon = "[UPDATED] **Updated**"
         $styleKey = "**$key**"
         $displayVal = "**$displayVal**"
     } elseif (-not $oldJson) {
         # Initial or no old content provided
         $statusIcon = ""
     } elseif ($newValStr -eq "*(null)*") {
-         $statusIcon = "⚪ *Empty*"
+         $statusIcon = "[EMPTY] *Empty*"
     }
 
     # Only add row if value exists or was modified
@@ -69,7 +69,7 @@ $rows = foreach ($key in $keys) {
 $fileName = Split-Path $ManifestPath -Leaf
 
 $md = @"
-### ✅ ChatOps Applied
+### [OK] ChatOps Applied
 **Manifest**: ``$fileName``
 
 | Field | Status | Current Value |

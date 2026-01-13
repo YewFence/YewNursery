@@ -224,7 +224,7 @@ if ($proc.ExitCode -ne 0) {
 Write-Host "Manifest saved to $ManifestPath"
 
 # 8. Report
-$BinStatus = if ($BinName) { "⚠️ Suggested" } else { "⭕ Missing" }
+$BinStatus = if ($BinName) { "[SUGGESTED]" } else { "[MISSING]" }
 $BinValue = if ($BinName) { "``$BinName``" } else { "Manual fill" }
 
 # Format candidates for report
@@ -239,7 +239,7 @@ if ($CandidatesList -and $CandidatesList.Count -gt 0) {
     $CandidatesStr = "No candidates found."
 }
 
-$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "✅ Generated" } else { "⭕ Missing" }
+$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "[GENERATED]" } else { "[MISSING]" }
 
 $TemplateData = @{
     "Owner"          = $Owner

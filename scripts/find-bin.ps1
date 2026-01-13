@@ -37,7 +37,7 @@ function Get-Tree {
 
     # Render tree
     $sb = [System.Text.StringBuilder]::new()
-    $sb.AppendLine("📂 (root)")
+    $sb.AppendLine("[DIR] (root)")
 
     Render-Node -Node $root -Prefix "" -StringBuilder $sb -Last $true
 
@@ -55,12 +55,12 @@ function Render-Node {
         $i++
         $isLast = ($i -eq $count)
 
-        if ($isLast) { $marker = "└── " } else { $marker = "├── " }
-        if ($isLast) { $childPrefix = "    " } else { $childPrefix = "│   " }
+        if ($isLast) { $marker = "`-- " } else { $marker = "|-- " }
+        if ($isLast) { $childPrefix = "    " } else { $childPrefix = "|   " }
 
         # Check if it looks like a file (has extension) or dir
         # This is a heuristic since we only have paths
-        if ($key -match "\.") { $icon = "📄" } else { $icon = "📂" }
+        if ($key -match "\.") { $icon = "[FILE]" } else { $icon = "[DIR]" }
 
         $StringBuilder.AppendLine("$Prefix$marker$icon $key")
 
