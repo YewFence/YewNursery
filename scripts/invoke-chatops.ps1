@@ -36,7 +36,13 @@ if ($cmd) {
         # but here we just do a quick guess for before-state or let pr-chatops handle validation.
         # Ideally, we should unify this logic.
         # For now, let's find the changed JSON file first.
-        $manifestPath = Get-ChangedManifestPath
+        if ($env:TARGET_MANIFEST) {
+            $manifestPath = $env:TARGET_MANIFEST
+            Write-Host "Using target manifest from environment: $manifestPath"
+        } else {
+            $manifestPath = Get-ChangedManifestPath
+        }
+
         if ($manifestPath -and (Test-Path $manifestPath)) {
             $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
         }
