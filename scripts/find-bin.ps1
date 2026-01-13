@@ -37,7 +37,7 @@ function Get-Tree {
 
     # Render tree
     $sb = [System.Text.StringBuilder]::new()
-    $sb.AppendLine("[DIR] (root)")
+    $sb.AppendLine("📂 (root)")
 
     Render-Node -Node $root -Prefix "" -StringBuilder $sb -Last $true
 
@@ -55,12 +55,12 @@ function Render-Node {
         $i++
         $isLast = ($i -eq $count)
 
-        if ($isLast) { $marker = "`-- " } else { $marker = "|-- " }
-        if ($isLast) { $childPrefix = "    " } else { $childPrefix = "|   " }
+        $marker = if ($isLast) { "└── " } else { "├── " }
+        $childPrefix = if ($isLast) { "    " } else { "│   " }
 
         # Check if it looks like a file (has extension) or dir
         # This is a heuristic since we only have paths
-        if ($key -match "\.") { $icon = "[FILE]" } else { $icon = "[DIR]" }
+        $icon = if ($key -match "\.") { "📄" } else { "📂" }
 
         $StringBuilder.AppendLine("$Prefix$marker$icon $key")
 
@@ -160,7 +160,7 @@ if ($fileList.Count -gt 0) {
 
 # 3. Score Candidates
 $normalizedAppName = Normalize-Name -Name $AppName
-if ($normalizedAppName) { $normalizedLiteral = [Regex]::Unescape($normalizedAppName) } else { $normalizedLiteral = "" }
+$normalizedLiteral = if ($normalizedAppName) { [Regex]::Unescape($normalizedAppName) } else { "" }
 
 $candidates = foreach ($path in $fileList) {
     $score = 0
@@ -214,7 +214,7 @@ $candidates = foreach ($path in $fileList) {
 # Sort candidates by score descending
 $sorted = $candidates | Where-Object { -not $_.IsBlacklisted } | Sort-Object Score -Descending
 
-if ($sorted.Count -gt 0) { $recommended = $sorted[0].Path } else { $recommended = $null }
+$recommended = if ($sorted.Count -gt 0) { $sorted[0].Path } else { $null }
 
 # 4. Generate Tree
 $tree = Get-Tree -Paths $rawPaths

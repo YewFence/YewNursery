@@ -224,7 +224,7 @@ $jqOutput | Set-Content -Path $ManifestPath -Encoding UTF8
 Write-Host "Manifest saved to $ManifestPath"
 
 # 8. Report
-$BinStatus = if ($BinName) { "[SUGGESTED]" } else { "[MISSING]" }
+$BinStatus = if ($BinName) { "⚠️ Suggested" } else { "⭕ Missing" }
 $BinValue = if ($BinName) { "``$BinName``" } else { "Manual fill" }
 
 # Format candidates for report
@@ -239,7 +239,7 @@ if ($CandidatesList -and $CandidatesList.Count -gt 0) {
     $CandidatesStr = "No candidates found."
 }
 
-$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "[GENERATED]" } else { "[MISSING]" }
+$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "✅ Generated" } else { "⭕ Missing" }
 
 $TemplateData = @{
     "Owner"          = $Owner
