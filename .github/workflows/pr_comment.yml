@@ -93,6 +93,22 @@ jobs:
           ref: ${{ steps.pr_info.outputs.head_ref }}
           fetch-depth: 2
 
+      - name: Fetch Base History
+        shell: bash
+        run: |
+          # Fetch base branch history to ensure diff works
+          # Useful for fork PRs where base commit might not be in the fork's shallow checkout
+          HEAD_REPO="${{ steps.pr_info.outputs.head_repo }}"
+          BASE_REPO="${{ github.repository }}"
+          BASE_REF="${{ steps.pr_info.outputs.base_ref }}"
+          
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            git remote add base_repo https://github.com/$BASE_REPO
+            git fetch base_repo $BASE_REF --depth=50
+          else
+            git fetch origin $BASE_REF --depth=50
+          fi
+
       - name: Acknowledge Command
         uses: actions/github-script@v7
         env:
