@@ -170,11 +170,11 @@ jobs:
         env:
           ALL_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
         run: |
-          $files = $env:ALL_FILES -split ' ' | Where-Object { 
+          $files = @($env:ALL_FILES -split ' ' | Where-Object { 
             $_ -match '\.json$' -and 
             $_ -notmatch '\.example\.json$' -and 
             $_ -notmatch '\.template\.json$' 
-          }
+          })
           if ($files.Count -eq 0) {
             Write-Error "No valid manifest file found in changes."
             exit 1
