@@ -26,7 +26,7 @@ scoop install YewNursery/<app-name>
 3. 点击 **Run workflow** 按钮
 4. 输入 GitHub 仓库地址（例如 `https://github.com/owner/repo`）
 5. 等待工作流运行完成，它会自动创建一个包含新应用的 Pull Request
-6. 检查 PR 中的应用清单，补充缺少的字段（如 `bin`, `shortcuts` 等）
+6. 检查 PR 中的应用清单，使用命令 `/set-bin` `/add-shortcut` 等补充缺少的字段（详情请自己查看PR正文）
 
 ### 手动添加
 
@@ -93,6 +93,30 @@ scoop install YewNursery/<app-name>
 | `$patchVersion` | 补丁版本号 | `3` |
 
 更多详情请阅读 [官方文档](https://github.com/ScoopInstaller/Scoop/wiki/App-Manifests)。
+
+## 维护工具
+
+我们在 `bin/` 目录下提供了一些脚本来帮助维护这个 Bucket：
+
+### 代码风格与格式化
+
+- **`bin/formatjson.ps1`**
+  格式化 `bucket/` 下的所有 JSON 清单。它会自动排序键值并统一缩进（4 空格），这是提交前的必修课哦！
+
+- **`bin/fix-style.ps1`**
+  自动修复文件中的格式问题，主要是删除行尾多余的空格并确保文件以换行符结束。支持 `.ps1`, `.json`, `.yml`, `.md` 等文件。
+
+### 测试与验证
+
+- **`bin/test.ps1`**
+  运行完整的 Pester 测试套件，这是 CI 流水线的主要关卡。
+
+- **`bin/checkver.ps1`**
+  检查应用的版本更新逻辑。可以用来测试你写的正则对不对。
+  用法：`.\bin\checkver.ps1 -App <app-name>`
+
+- **`bin/checkhashes.ps1` / `bin/checkurls.ps1`**
+  分别用来验证清单中下载链接的哈希值是否匹配，以及链接是否依然有效。
 
 ---
 
