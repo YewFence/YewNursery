@@ -88,10 +88,48 @@ try {
             }
         }
         "/set-shortcut" {
-            if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-shortcut <target> <name>" }
+            $target = $null
+            $shortcutName = $null
+
+            if ($parsedArgs.Count -eq 1) {
+                # Usage: /set-shortcut <name> (Auto-detect target)
+                $shortcutName = $parsedArgs[0]
+                
+                # Read manifest to find bin
+                try {
+                    $json = Get-Content $manifestPath -Raw | ConvertFrom-Json
+                    if ($json.bin) {
+                        if ($json.bin -is [string]) {
+                            $target = $json.bin
+                        } elseif ($json.bin -is [array] -and $json.bin.Count -gt 0) {
+                            $first = $json.bin[0]
+                            if ($first -is [string]) {
+                                $target = $first
+                            } elseif ($first -is [array] -and $first.Count -gt 0) {
+                                $target = $first[0]
+                            }
+                        }
+                    }
+                } catch {
+                    Write-Error "Failed to parse manifest JSON to infer bin path."
+                }
+
+                if (-not $target) {
+                    Write-Error "Could not automatically detect 'bin' in manifest. Please specify target: /set-shortcut <target> <name>"
+                }
+                Write-Host "Auto-detected shortcut target: $target"
+
+            } elseif ($parsedArgs.Count -eq 2) {
+                # Usage: /set-shortcut <target> <name>
+                $target = $parsedArgs[0]
+                $shortcutName = $parsedArgs[1]
+            } else {
+                Write-Error "Usage: /set-shortcut <name> (auto-bin) OR /set-shortcut <target> <name>"
+            }
+
             # .shortcuts = [["exe", "name"]]
-            Run-Jq -Path $manifestPath -Filter '.shortcuts = [[$a1, $a2]]' -Arg1 $parsedArgs[0] -Arg2 $parsedArgs[1]
-            Write-Host "Set shortcut: $($parsedArgs[0]) -> $($parsedArgs[1])"
+            Run-Jq -Path $manifestPath -Filter '.shortcuts = [[$a1, $a2]]' -Arg1 $target -Arg2 $shortcutName
+            Write-Host "Set shortcut: $target -> $shortcutName"
         }
         "/set-persist" {
              if ($parsedArgs.Count -eq 1) {
