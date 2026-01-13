@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Dependencies
+        shell: pwsh
+        run: |
+          scoop install jq 7zip
+
       - name: Generate Manifest
         shell: pwsh
         env:

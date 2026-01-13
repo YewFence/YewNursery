@@ -7,27 +7,49 @@ param (
 $ErrorActionPreference = 'Stop'
 
 function Get-ManifestPath {
-    # Find the modified .json file in bucket/
-    # In a PR context, we might rely on git diff or just look for the file mentioned in the PR or just find the single changed json file.
-    # For simplicity, assuming the PR mainly touches one app manifest or we pick the first one found in bucket/ that is modified.
-    # Actually, relying on git diff --name-only origin/main...HEAD is safer.
-
     $files = git diff --name-only origin/main...HEAD | Where-Object { $_ -match '^bucket\\.*\.json$' -or $_ -match '^bucket/.*\.json$' }
     if (-not $files) {
         Write-Error "No manifest file found in the changes."
     }
-    # Return the first one
     if ($files -is [array]) { return $files[0] }
     return $files
 }
 
-function Update-Json {
-    param($Path, $ScriptBlock)
-    $json = Get-Content $Path -Raw | ConvertFrom-Json
-    & $ScriptBlock $json
+# Helper wrapper for jq
+function Run-Jq {
+    param(
+        [string]$Path,
+        [string]$Filter,
+        [string]$Arg1 = $null,
+        [string]$Arg2 = $null
+    )
 
-    # We rely on formatjson.ps1 later to fix indentation, so just dump it here
-    $json | ConvertTo-Json -Depth 100 | Set-Content $Path
+    $TempFile = "$Path.tmp"
+    
+    # Construct args list for jq
+    $jqArgs = @()
+    if ($Arg1) { $jqArgs += "--arg", "a1", $Arg1 }
+    if ($Arg2) { $jqArgs += "--arg", "a2", $Arg2 }
+    $jqArgs += $Filter
+    $jqArgs += $Path
+
+    Write-Host "Running jq filter: $Filter"
+    # Execute jq using Start-Process or direct call depending on shell, but direct call is easier in pwsh
+    # We pipeline input/output to avoid shell encoding issues if possible, but jq takes file arg nicely.
+    
+    # Run jq and capture output to temp file
+    # Note: We use Invoke-Expression or & to run it.
+    # To avoid quoting hell, we pass arguments carefully.
+    
+    $proc = Start-Process -FilePath "jq" -ArgumentList ($jqArgs) -NoNewWindow -PassThru -RedirectStandardOutput $TempFile
+    $proc.WaitForExit()
+
+    if ($proc.ExitCode -ne 0) {
+        Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
+        Throw "jq execution failed."
+    }
+
+    Move-Item $TempFile $Path -Force
 }
 
 # Parse Arguments using PowerShell's tokenizer to handle quotes correctly
@@ -53,51 +75,52 @@ try {
 
     switch ($Command) {
         "/set-bin" {
-            Update-Json $manifestPath {
-                param($j)
-                if ($parsedArgs.Count -eq 1) {
-                    $j.bin = $parsedArgs[0]
-                    Write-Host "Set bin to: $($parsedArgs[0])"
-                } elseif ($parsedArgs.Count -eq 2) {
-                    $j.bin = @( @($parsedArgs[0], $parsedArgs[1]) )
-                    Write-Host "Set bin to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-                } else {
-                    Write-Error "Usage: /set-bin <exe> [alias]"
-                }
+            if ($parsedArgs.Count -eq 1) {
+                # .bin = "value"
+                Run-Jq -Path $manifestPath -Filter '.bin = $a1' -Arg1 $parsedArgs[0]
+                Write-Host "Set bin to: $($parsedArgs[0])"
+            } elseif ($parsedArgs.Count -eq 2) {
+                # .bin = [["exe", "alias"]]
+                Run-Jq -Path $manifestPath -Filter '.bin = [[$a1, $a2]]' -Arg1 $parsedArgs[0] -Arg2 $parsedArgs[1]
+                Write-Host "Set bin to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
+            } else {
+                Write-Error "Usage: /set-bin <exe> [alias]"
             }
         }
         "/set-shortcut" {
-            Update-Json $manifestPath {
-                param($j)
-                if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-shortcut <target> <name>" }
-
-                $j.shortcuts = @( @($parsedArgs[0], $parsedArgs[1]) )
-                Write-Host "Set shortcut: $($parsedArgs[0]) -> $($parsedArgs[1])"
-            }
+            if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-shortcut <target> <name>" }
+            # .shortcuts = [["exe", "name"]]
+            Run-Jq -Path $manifestPath -Filter '.shortcuts = [[$a1, $a2]]' -Arg1 $parsedArgs[0] -Arg2 $parsedArgs[1]
+            Write-Host "Set shortcut: $($parsedArgs[0]) -> $($parsedArgs[1])"
         }
         "/set-persist" {
-            Update-Json $manifestPath {
-                param($j)
-                if ($parsedArgs.Count -eq 1) {
-                    $j.persist = $parsedArgs[0]
-                    Write-Host "Set persist to: $($parsedArgs[0])"
-                } elseif ($parsedArgs.Count -eq 2) {
-                    $j.persist = @( @($parsedArgs[0], $parsedArgs[1]) )
-                    Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-                } else {
-                    Write-Error "Usage: /set-persist <file> [alias]"
-                }
+             if ($parsedArgs.Count -eq 1) {
+                # .persist = "value"
+                Run-Jq -Path $manifestPath -Filter '.persist = $a1' -Arg1 $parsedArgs[0]
+                Write-Host "Set persist to: $($parsedArgs[0])"
+            } elseif ($parsedArgs.Count -eq 2) {
+                # .persist = [["data", "alias"]]
+                Run-Jq -Path $manifestPath -Filter '.persist = [[$a1, $a2]]' -Arg1 $parsedArgs[0] -Arg2 $parsedArgs[1]
+                Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
+            } else {
+                Write-Error "Usage: /set-persist <file> [alias]"
             }
         }
         "/set-key" {
-            Update-Json $manifestPath {
-                param($j)
-                if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-key <key> <value>" }
-                $key = $parsedArgs[0]
-                $val = $parsedArgs[1]
-                $j.$key = $val
-                Write-Host "Set $key = $val"
-            }
+            if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-key <key> <value>" }
+            # Dynamic key update: .[$key] = $value
+            # Note: We need to pass key as a separate arg to be safe
+            # But Run-Jq helper only takes 2 args. Let's customize for this case.
+            
+            $key = $parsedArgs[0]
+            $val = $parsedArgs[1]
+            
+            # Use specific filter for this
+            $filter = ".[""$key""] = `$a1" 
+            # Note: PowerShell interpolation for $key, but $a1 is jq variable
+            
+            Run-Jq -Path $manifestPath -Filter ".[`"$key`"] = `$a1" -Arg1 $val
+            Write-Host "Set $key = $val"
         }
         default {
             Write-Error "Unknown command: $Command"
