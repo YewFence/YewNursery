@@ -1,0 +1,148 @@
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+name: Commented Pull Request
+
+jobs:
+  # Existing handler for /verify
+  pullRequestHandler:
+    name: PullRequestHandler
+    runs-on: windows-latest
+    if: startsWith(github.event.comment.body, '/verify')
+    steps:
+      - uses: actions/checkout@main
+      - name: PullRequestHandler
+        uses: ScoopInstaller/GithubActions@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # New ChatOps handler
+  check-syntax:
+    name: Check Syntax
+    runs-on: ubuntu-latest
+    if: |
+      github.event.issue.pull_request &&
+      (startsWith(github.event.comment.body, '/set-bin') ||
+       startsWith(github.event.comment.body, '/set-shortcut') ||
+       startsWith(github.event.comment.body, '/set-persist') ||
+       startsWith(github.event.comment.body, '/set-key') ||
+       startsWith(github.event.comment.body, '/list-config'))
+    steps:
+      - name: Checkout PR (for scripts)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+
+      - name: Acknowledge Command
+        uses: actions/github-script@v7
+        env:
+          REACTION_CONTENT: eyes
+        with:
+          script: |
+            const script = require('./scripts/github/add-reaction.js');
+            await script({github, context, core});
+
+      - name: Validate Command Syntax
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const script = require('./scripts/github/validate-syntax.js');
+            await script({github, context, core});
+
+  chatops:
+    name: ChatOps
+    needs: check-syntax
+    runs-on: windows-latest
+    steps:
+      - name: Get PR Info
+        id: pr_info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('head_repo', pr.head.repo.full_name);
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_info.outputs.head_repo }}
+          ref: ${{ steps.pr_info.outputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Acknowledge Processing
+        uses: actions/github-script@v7
+        env:
+          REACTION_CONTENT: eyes
+        with:
+          script: |
+            const script = require('./scripts/github/add-reaction.js');
+            await script({github, context, core});
+
+      - name: Ensure Main is fetched
+        run: git fetch origin main
+
+      - name: Checkout Scoop Core (for formatjson)
+        uses: actions/checkout@v4
+        with:
+          repository: ScoopInstaller/Scoop
+          path: scoop_core
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Install Dependencies
+        shell: pwsh
+        run: |
+          scoop install jq 7zip
+
+      - name: Process Command
+        id: process_cmd
+        shell: pwsh
+        env:
+          SCOOP_HOME: ${{ github.workspace }}\scoop_core
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          ./scripts/invoke-chatops.ps1
+
+      - name: Format JSON
+        shell: pwsh
+        env:
+          SCOOP_HOME: ${{ github.workspace }}\scoop_core
+        run: |
+          ./bin/formatjson.ps1
+
+      - name: Commit and Push
+        run: |
+          git add bucket/*.json
+          # Check if there are changes
+          git diff --staged --quiet || git commit -m "chore: update manifest via chatops"
+          git push
+
+      - name: Report Success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const script = require('./scripts/github/report-success.js');
+            await script({github, context, core});
+
+      - name: Report Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const script = require('./scripts/github/report-failure.js');
+            await script({github, context, core});

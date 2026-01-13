@@ -24,6 +24,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Scoop
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+      - name: Install Dependencies
+        shell: pwsh
+        run: |
+          scoop install jq 7zip
+
       - name: Generate Manifest
         shell: pwsh
         env:

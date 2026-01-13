@@ -26,7 +26,8 @@ scoop install YewNursery/<app-name>
 3. 点击 **Run workflow** 按钮
 4. 输入 GitHub 仓库地址（例如 `https://github.com/owner/repo`）
 5. 等待工作流运行完成，它会自动创建一个包含新应用的 Pull Request
-6. 检查 PR 中的应用清单，补充缺少的字段（如 `bin`, `shortcuts` 等）
+6. 检查 PR 中的应用清单，使用命令 `/set-bin` `/set-shortcut` 等补充缺少的字段
+> 具体命令见下表
 
 ### 手动添加
 
@@ -94,7 +95,45 @@ scoop install YewNursery/<app-name>
 
 更多详情请阅读 [官方文档](https://github.com/ScoopInstaller/Scoop/wiki/App-Manifests)。
 
----
+## 常用命令速查
+
+### 🤖 ChatOps 命令 (PR 交互)
+
+在自动生成的 Pull Request 中，你可以通过评论以下指令来快速修改应用清单：
+
+| 命令 | 示例 | 作用 |
+|------|------|------|
+| `/set-bin` | `/set-bin "main.exe"`<br>`/set-bin "main.exe" "alias"` | 设置主程序 (Shim)，可选指定别名 |
+| `/set-shortcut` | `/set-shortcut "My App"`<br>`/set-shortcut "gui.exe" "My App"` | 设置开始菜单快捷方式 (自动识别 bin 或手动指定) |
+| `/set-persist` | `/set-persist "conf.ini"`<br>`/set-persist "data" "data_dir"` | 设置持久化文件或目录 |
+| `/set-key` | `/set-key "homepage" "https://example.com"` | 修改任意清单字段的值 |
+| `/list-config` | `/list-config` | 查看当前配置状态 |
+
+
+### 🛠️ 维护脚本 (Maintenance)
+
+位于 `bin/` 目录下的实用脚本，用于本地开发和测试：
+
+| 脚本 | 命令示例 | 说明 |
+|------|----------|------|
+| **checkver** | `.\bin\checkver.ps1 -App ripgrep` | 测试版本检测逻辑 (Regex/JSONPath) |
+| **checkurls** | `.\bin\checkurls.ps1` | 检查所有清单的下载链接是否有效 |
+| **checkhashes** | `.\bin\checkhashes.ps1` | 校验现有清单的哈希值是否匹配 |
+| **formatjson** | `.\bin\formatjson.ps1` | 格式化 JSON 清单 (**提交前必跑**) |
+| **test** | `.\bin\test.ps1` | 运行完整的 Pester 测试套件 |
+| **fix-style** | `.\bin\fix-style.ps1` | 修复文件行尾空格和换行符 |
+| **setup-hooks** | `.\bin\setup-hooks.ps1` | 安装 Git Hooks (pre-commit) |
+| **auto-pr** | `.\bin\auto-pr.ps1` | (CI内部使用) 自动创建 PR |
+
+### ⚙️ 开发环境配置 (Developer Setup)
+
+为了保证代码风格一致，建议安装 Git Hooks：
+
+```powershell
+.\bin\setup-hooks.ps1
+```
+
+这会在每次提交前自动运行代码风格检查。
 
 ## 使用模板的步骤
 
