@@ -214,12 +214,12 @@ if ($AutoExtractDir) { $jqArgs += "--arg", "auto_extract", $AutoExtractDir }
 $jqArgs += $jqFilter
 
 # Run jq and redirect to file
-$proc = Start-Process -FilePath "jq" -ArgumentList $jqArgs -NoNewWindow -PassThru -RedirectStandardOutput $ManifestPath
-$proc.WaitForExit()
-
-if ($proc.ExitCode -ne 0) {
+$jqOutput = & jq @jqArgs $jqFilter
+if ($LASTEXITCODE -ne 0) {
     Throw "jq failed to generate manifest"
 }
+
+$jqOutput | Set-Content -Path $ManifestPath -Encoding UTF8
 
 Write-Host "Manifest saved to $ManifestPath"
 
