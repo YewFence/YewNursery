@@ -1,4 +1,4 @@
-﻿# scripts/pr-chatops.ps1
+# scripts/pr-chatops.ps1
 param (
     [string]$Command,
     [string]$ArgsLine
@@ -66,31 +66,27 @@ try {
                 }
             }
         }
-        "/add-bin" {
-             Update-Json $manifestPath {
-                param($j)
-                if ($null -eq $j.bin) { $j.bin = @() }
-                if ($j.bin -is [string]) { $j.bin = @($j.bin) }
-
-                if ($parsedArgs.Count -eq 1) {
-                    $j.bin += $parsedArgs[0]
-                    Write-Host "Added bin: $($parsedArgs[0])"
-                } elseif ($parsedArgs.Count -eq 2) {
-                    $j.bin += @($parsedArgs[0], $parsedArgs[1])
-                    Write-Host "Added bin alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-                } else {
-                    Write-Error "Usage: /add-bin <exe> [alias]"
-                }
-            }
-        }
-        "/add-shortcut" {
+        "/set-shortcut" {
             Update-Json $manifestPath {
                 param($j)
-                if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /add-shortcut <target> <name>" }
+                if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-shortcut <target> <name>" }
 
-                if ($null -eq $j.shortcuts) { $j.shortcuts = @() }
-                $j.shortcuts += @($parsedArgs[0], $parsedArgs[1])
-                Write-Host "Added shortcut: $($parsedArgs[0]) -> $($parsedArgs[1])"
+                $j.shortcuts = @( @($parsedArgs[0], $parsedArgs[1]) )
+                Write-Host "Set shortcut: $($parsedArgs[0]) -> $($parsedArgs[1])"
+            }
+        }
+        "/set-persist" {
+            Update-Json $manifestPath {
+                param($j)
+                if ($parsedArgs.Count -eq 1) {
+                    $j.persist = $parsedArgs[0]
+                    Write-Host "Set persist to: $($parsedArgs[0])"
+                } elseif ($parsedArgs.Count -eq 2) {
+                    $j.persist = @( @($parsedArgs[0], $parsedArgs[1]) )
+                    Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
+                } else {
+                    Write-Error "Usage: /set-persist <file> [alias]"
+                }
             }
         }
         "/set-key" {

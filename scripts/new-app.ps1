@@ -277,8 +277,8 @@ $Report = @"
 ### ChatOps Available
 You can modify this manifest by commenting on this PR with the following commands:
 - `/set-bin "app.exe"` or `/set-bin "app.exe" "alias"`: Set the `bin` field.
-- `/add-bin "tool.exe"` or `/add-bin "tool.exe" "tool-alias"`: Add an item to the `bin` field.
-- `/add-shortcut "app.exe" "App Name"`: Add a shortcut.
+- `/set-shortcut "app.exe" "App Name"`: Set the `shortcuts` field.
+- `/set-persist "data"` or `/set-persist "data" "alias"`: Set the `persist` field.
 - `/set-key "description" "New description"`: Set any field.
 
 "@
