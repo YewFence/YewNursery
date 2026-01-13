@@ -27,7 +27,26 @@ if ($line -match '^(\/[^\s]+)\s+(.*)$') {
 if ($cmd) {
     Write-Host "Executing: $cmd $argsLine"
     
-    # Execute script and capture ALL output (streams *>&1) to log file
+    # 1. Capture OLD state
+    $manifestPath = $null
+    $oldContent = ""
+    try {
+        # Try to resolve manifest path similar to how pr-chatops does, 
+        # but here we just do a quick guess for before-state or let pr-chatops handle validation.
+        # Ideally, we should unify this logic.
+        # For now, let's find the changed JSON file first.
+        $files = git diff --name-only origin/main...HEAD | Where-Object { $_ -match '^bucket\\.*\.json$' -or $_ -match '^bucket/.*\.json$' }
+        if ($files -is [array]) { $files = $files[0] }
+        
+        if ($files -and (Test-Path $files)) {
+            $manifestPath = $files
+            $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
+        }
+    } catch {
+        Write-Warning "Could not capture pre-execution state: $_"
+    }
+
+    # 2. Execute script and capture ALL output (streams *>&1) to log file
     # We use try/catch to ensure we capture the exit code correctly while Tee-Object runs
     try {
         & ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine *>&1 | Tee-Object -FilePath "chatops.log"
@@ -36,6 +55,32 @@ if ($cmd) {
         Write-Error "ChatOps execution failed: $_"
         exit 1
     }
+
+    # 3. Generate Report if successful
+    if ($manifestPath -and (Test-Path $manifestPath)) {
+        Write-Host "Generating report for $manifestPath..."
+        try {
+             # We pass the OLD content as a string.
+             # Note: PowerShell argument passing of multiline strings can be tricky, 
+             # so we might pass it via file or Base64 if it was complex, but direct string usually works for JSON.
+             # Alternatively, we just pass the path and let the report script read the NEW content,
+             # but we need to pass the OLD content somehow.
+             
+             # Let's save old content to a temp file to be safe
+             $oldFile = "old_manifest.tmp"
+             if ($oldContent) {
+                $oldContent | Out-File -FilePath $oldFile -Encoding utf8
+                $oldContentRaw = Get-Content -Raw $oldFile
+             } else {
+                $oldContentRaw = ""
+             }
+
+             ./scripts/generate-report.ps1 -ManifestPath $manifestPath -OldContentString $oldContentRaw
+        } catch {
+             Write-Warning "Report generation failed: $_"
+        }
+    }
+
 } else {
     Write-Warning "No command found in comment body."
 }
