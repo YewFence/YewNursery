@@ -214,17 +214,17 @@ if ($AutoExtractDir) { $jqArgs += "--arg", "auto_extract", $AutoExtractDir }
 $jqArgs += $jqFilter
 
 # Run jq and redirect to file
-$proc = Start-Process -FilePath "jq" -ArgumentList $jqArgs -NoNewWindow -PassThru -RedirectStandardOutput $ManifestPath
-$proc.WaitForExit()
-
-if ($proc.ExitCode -ne 0) {
+$jqOutput = & jq @jqArgs $jqFilter
+if ($LASTEXITCODE -ne 0) {
     Throw "jq failed to generate manifest"
 }
+
+$jqOutput | Set-Content -Path $ManifestPath -Encoding UTF8
 
 Write-Host "Manifest saved to $ManifestPath"
 
 # 8. Report
-$BinStatus = if ($BinName) { "[SUGGESTED]" } else { "[MISSING]" }
+$BinStatus = if ($BinName) { "⚠️ Suggested" } else { "⭕ Missing" }
 $BinValue = if ($BinName) { "``$BinName``" } else { "Manual fill" }
 
 # Format candidates for report
@@ -239,7 +239,7 @@ if ($CandidatesList -and $CandidatesList.Count -gt 0) {
     $CandidatesStr = "No candidates found."
 }
 
-$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "[GENERATED]" } else { "[MISSING]" }
+$ShortcutStatus = if ($CreateShortcutBool -and $BinName) { "✅ Generated" } else { "⭕ Missing" }
 
 $TemplateData = @{
     "Owner"          = $Owner

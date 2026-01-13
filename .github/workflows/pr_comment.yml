@@ -1,6 +1,14 @@
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request Number'
+        required: true
+      comment_body:
+        description: 'Comment Body (e.g. /verify, /set-bin ...)'
+        required: true
 permissions:
   contents: write
   pull-requests: write
@@ -9,68 +17,93 @@ permissions:
 name: Commented Pull Request
 
 jobs:
-  # Existing handler for /verify
+  # Existing handler for /verify (Keep on Windows for compatibility with checkver if needed)
   pullRequestHandler:
     name: PullRequestHandler
     runs-on: windows-latest
-    if: startsWith(github.event.comment.body, '/verify')
-    steps:
-      - uses: actions/checkout@main
-      - name: PullRequestHandler
-        uses: ScoopInstaller/GithubActions@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # New ChatOps handler
-  check-syntax:
-    name: Check Syntax
-    runs-on: ubuntu-latest
     if: |
-      github.event.issue.pull_request &&
-      (startsWith(github.event.comment.body, '/set-bin') ||
-       startsWith(github.event.comment.body, '/set-shortcut') ||
-       startsWith(github.event.comment.body, '/set-persist') ||
-       startsWith(github.event.comment.body, '/set-key') ||
-       startsWith(github.event.comment.body, '/list-config'))
-    steps:
-      - name: Checkout PR (for scripts)
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: scripts
-
-      - name: Acknowledge Command
-        uses: actions/github-script@v7
-        env:
-          REACTION_CONTENT: eyes
-        with:
-          script: |
-            const script = require('./scripts/github/add-reaction.js');
-            await script({github, context, core});
-
-      - name: Validate Command Syntax
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const script = require('./scripts/github/validate-syntax.js');
-            await script({github, context, core});
-
-  chatops:
-    name: ChatOps
-    needs: check-syntax
-    runs-on: windows-latest
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/verify')) ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.comment_body, '/verify'))
     steps:
       - name: Get PR Info
         id: pr_info
         uses: actions/github-script@v7
         with:
           script: |
+            const prNumber = context.issue.number || context.payload.inputs.pr_number;
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number
+              pull_number: prNumber
             });
             core.setOutput('head_ref', pr.head.ref);
             core.setOutput('head_repo', pr.head.repo.full_name);
+            core.setOutput('base_ref', pr.base.ref);
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pr_info.outputs.head_repo }}
+          ref: ${{ steps.pr_info.outputs.head_ref }}
+
+      - name: PullRequestHandler
+        uses: ScoopInstaller/GithubActions@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Refactored ChatOps handler running on Linux
+  chatops:
+    name: ChatOps
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.issue.pull_request &&
+       (startsWith(github.event.comment.body, '/set-bin') ||
+        startsWith(github.event.comment.body, '/set-shortcut') ||
+        startsWith(github.event.comment.body, '/set-persist') ||
+        startsWith(github.event.comment.body, '/set-key') ||
+        startsWith(github.event.comment.body, '/list-config'))) ||
+      (github.event_name == 'workflow_dispatch' &&
+       (startsWith(inputs.comment_body, '/set-bin') ||
+        startsWith(inputs.comment_body, '/set-shortcut') ||
+        startsWith(inputs.comment_body, '/set-persist') ||
+        startsWith(inputs.comment_body, '/set-key') ||
+        startsWith(inputs.comment_body, '/list-config')))
+    steps:
+      - name: Acknowledge Command
+        uses: actions/github-script@v7
+        env:
+          REACTION_CONTENT: eyes
+        with:
+          script: |
+            if (context.eventName === 'workflow_dispatch') return;
+            const reaction = process.env.REACTION_CONTENT || 'eyes';
+            try {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: reaction
+              });
+              console.log(`Added '${reaction}' reaction.`);
+            } catch (error) {
+              console.error('Failed to add reaction:', error);
+            }
+
+      - name: Get PR Info
+        id: pr_info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number || context.payload.inputs.pr_number;
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('head_repo', pr.head.repo.full_name);
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('base_sha', pr.base.sha);
 
       - name: Checkout PR
         uses: actions/checkout@v4
@@ -78,19 +111,49 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ steps.pr_info.outputs.head_repo }}
           ref: ${{ steps.pr_info.outputs.head_ref }}
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Acknowledge Processing
+      - name: Fetch Base History
+        shell: bash
+        run: |
+          # Fetch base branch history to ensure diff works
+          # Useful for fork PRs where base commit might not be in the fork's shallow checkout
+          HEAD_REPO="${{ steps.pr_info.outputs.head_repo }}"
+          BASE_REPO="${{ github.repository }}"
+          BASE_REF="${{ steps.pr_info.outputs.base_ref }}"
+          
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            git remote add base_repo https://github.com/$BASE_REPO
+            git fetch base_repo $BASE_REF --depth=50
+          else
+            git fetch origin $BASE_REF --depth=50
+          fi
+
+      - name: Validate Command Syntax
         uses: actions/github-script@v7
         env:
-          REACTION_CONTENT: eyes
+            COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
         with:
           script: |
-            const script = require('./scripts/github/add-reaction.js');
+            const script = require('./scripts/github/validate-syntax.js');
+            
+            if (context.eventName === 'workflow_dispatch') {
+                // Mock payload for syntax validator
+                context.payload.comment = { 
+                    body: process.env.COMMENT_BODY,
+                    id: 1 
+                };
+                // Mock context.issue for issue_number access
+                Object.defineProperty(context, 'issue', {
+                    get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
+                });
+                // Mock reactions for dispatch
+                github.rest.reactions.createForIssueComment = async (args) => {
+                    console.log(`[Mock] Adding reaction ${args.content} to comment ${args.comment_id}`);
+                    return { data: {} };
+                };
+            }
             await script({github, context, core});
-
-      - name: Ensure Main is fetched
-        run: git fetch origin main
 
       - name: Checkout Scoop Core (for formatjson)
         uses: actions/checkout@v4
@@ -98,44 +161,75 @@ jobs:
           repository: ScoopInstaller/Scoop
           path: scoop_core
 
-      - name: Configure Git
-        run: |
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: bucket/*.json
+          sha: ${{ steps.pr_info.outputs.head_sha }}
+          base_sha: ${{ steps.pr_info.outputs.base_sha }}
 
-      - name: Install Dependencies
-        shell: pwsh
-        run: |
-          scoop install jq 7zip
-
-      - name: Process Command
-        id: process_cmd
+      - name: Resolve Target Manifest
+        id: resolve_manifest
         shell: pwsh
         env:
-          SCOOP_HOME: ${{ github.workspace }}\scoop_core
-          COMMENT_BODY: ${{ github.event.comment.body }}
+          ALL_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
         run: |
-          ./scripts/invoke-chatops.ps1
+          $files = @($env:ALL_FILES -split ' ' | Where-Object { 
+            $_ -match '\.json$' -and 
+            $_ -notmatch '\.example\.json$' -and 
+            $_ -notmatch '\.template\.json$' 
+          })
+          if ($files.Count -eq 0) {
+            Write-Error "No valid manifest file found in changes."
+            exit 1
+          }
+          if ($files.Count -gt 1) {
+            Write-Error "Multiple manifest files found: $($files -join ', '). Please modify only one manifest."
+            exit 1
+          }
+          "TARGET_MANIFEST=$($files[0])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Process Command
+        shell: pwsh
+        env:
+          SCOOP_HOME: ${{ github.workspace }}/scoop_core
+          COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
+          REPORT_FILE: chatops-report.md
+          LOG_FILE: chatops.log
+        run: ./scripts/invoke-chatops.ps1
 
       - name: Format JSON
         shell: pwsh
         env:
-          SCOOP_HOME: ${{ github.workspace }}\scoop_core
-        run: |
-          ./bin/formatjson.ps1
+          SCOOP_HOME: ${{ github.workspace }}/scoop_core
+        run: ./bin/formatjson.ps1
 
-      - name: Commit and Push
-        run: |
-          git add bucket/*.json
-          # Check if there are changes
-          git diff --staged --quiet || git commit -m "chore: update manifest via chatops"
-          git push
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update manifest via chatops"
+          file_pattern: 'bucket/*.json'
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
 
       - name: Report Success
         if: success()
         uses: actions/github-script@v7
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+                // Mock for reporting
+                context.payload.comment = { 
+                    id: 1, 
+                    body: context.payload.inputs.comment_body 
+                };
+                Object.defineProperty(context, 'issue', {
+                    get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
+                });
+                github.rest.reactions.createForIssueComment = async () => ({ data: {} });
+            }
             const script = require('./scripts/github/report-success.js');
             await script({github, context, core});
 
@@ -144,5 +238,16 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+                // Mock for reporting
+                context.payload.comment = { 
+                    id: 1, 
+                    body: context.payload.inputs.comment_body 
+                };
+                Object.defineProperty(context, 'issue', {
+                    get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
+                });
+                github.rest.reactions.createForIssueComment = async () => ({ data: {} });
+            }
             const script = require('./scripts/github/report-failure.js');
             await script({github, context, core});

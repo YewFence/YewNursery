@@ -14,5 +14,5 @@ if (-not (Test-Path $HookDir)) {
 }
 
 Copy-Item $SourceHook "$HookDir/pre-commit" -Force
-Write-Host "[OK] Git hooks installed successfully to .git/hooks/" -ForegroundColor Green
+Write-Host "✅ Git hooks installed successfully to .git/hooks/" -ForegroundColor Green
 Write-Host "   Style checks will now run before every commit." -ForegroundColor Gray

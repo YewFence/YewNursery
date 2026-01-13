@@ -2,7 +2,6 @@
 # Wrapper script to invoke pr-chatops.ps1 based on Comment Body
 
 $ErrorActionPreference = 'Stop'
-. "$PSScriptRoot/utils.ps1"
 
 $body = $env:COMMENT_BODY
 if (-not $body) {
@@ -29,32 +28,43 @@ if ($cmd) {
     Write-Host "Executing: $cmd $argsLine"
 
     # 1. Capture OLD state
-    $manifestPath = $null
+    $manifestPath = $env:TARGET_MANIFEST
+    if (-not $manifestPath) {
+        Write-Error "TARGET_MANIFEST environment variable not found."
+        exit 1
+    }
+    
+    Write-Host "Using target manifest: $manifestPath"
+    
     $oldContent = ""
     try {
-        # Try to resolve manifest path similar to how pr-chatops does,
-        # but here we just do a quick guess for before-state or let pr-chatops handle validation.
-        # Ideally, we should unify this logic.
-        # For now, let's find the changed JSON file first.
-        $manifestPath = Get-ChangedManifestPath
-        if ($manifestPath -and (Test-Path $manifestPath)) {
+        if (Test-Path $manifestPath) {
             $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
         }
     } catch {
-        if ($_.Exception.Message -match "Multiple manifest files found") {
-            Write-Error $_.Exception.Message
-            exit 1
-        }
         Write-Warning "Could not capture pre-execution state: $_"
     }
 
     # 2. Execute script and capture ALL output (streams *>&1) to log file
     # We use try/catch to ensure we capture the exit code correctly while Tee-Object runs
+    $scriptFailed = $false
     try {
-        & ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine *>&1 | Tee-Object -FilePath "chatops.log"
-        if ($LASTEXITCODE -ne 0) { throw "Script failed with exit code $LASTEXITCODE" }
+        & ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine -ManifestPath $manifestPath *>&1 | Tee-Object -FilePath "chatops.log"
+        # Check both $LASTEXITCODE and $? to catch all failure scenarios
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { 
+            $scriptFailed = $true
+            throw "Script failed with exit code $LASTEXITCODE" 
+        }
+        if (-not $?) {
+            $scriptFailed = $true
+            throw "Script execution failed"
+        }
     } catch {
+        $scriptFailed = $true
         Write-Error "ChatOps execution failed: $_"
+    }
+    
+    if ($scriptFailed) {
         exit 1
     }
 

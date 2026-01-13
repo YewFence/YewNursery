@@ -1,88 +1,120 @@
 # scripts/pr-chatops.ps1
 param (
     [string]$Command,
-    [string]$ArgsLine
+    [string]$ArgsLine,
+    [string]$ManifestPath
 )
 
 $ErrorActionPreference = 'Stop'
-. "$PSScriptRoot/utils.ps1"
 
-# Helper wrapper for jq
-function Run-Jq {
-    param(
-        [string]$Path,
-        [string]$Filter,
-        [string]$Arg1 = $null,
-        [string]$Arg2 = $null
-    )
-
-    $TempFile = "$Path.tmp"
-
-    # Construct args list for jq
-    $jqArgs = @()
-    if ($Arg1) { $jqArgs += "--arg", "a1", $Arg1 }
-    if ($Arg2) { $jqArgs += "--arg", "a2", $Arg2 }
-    $jqArgs += $Filter
-    $jqArgs += $Path
-
-    Write-Host "Running jq filter: $Filter"
-    # Execute jq using Start-Process or direct call depending on shell, but direct call is easier in pwsh
-    # We pipeline input/output to avoid shell encoding issues if possible, but jq takes file arg nicely.
-
-    # Run jq and capture output to temp file
-    # Note: We use Invoke-Expression or & to run it.
-    # To avoid quoting hell, we pass arguments carefully.
-
-    $StdErrFile = "$TempFile.err"
-    $proc = Start-Process -FilePath "jq" -ArgumentList ($jqArgs) -NoNewWindow -PassThru -RedirectStandardOutput $TempFile -RedirectStandardError $StdErrFile
-    $proc.WaitForExit()
-
-    if ($proc.ExitCode -ne 0) {
-        $errMsg = if (Test-Path $StdErrFile) { Get-Content -Raw $StdErrFile } else { "Unknown error" }
-        Remove-Item $StdErrFile -Force -ErrorAction SilentlyContinue
-        Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
-        Throw "jq execution failed: $errMsg"
+# Resolve Manifest Path if not provided
+if (-not $ManifestPath) {
+    if ($env:TARGET_MANIFEST) {
+        $ManifestPath = $env:TARGET_MANIFEST
     }
-
-    Remove-Item $StdErrFile -Force -ErrorAction SilentlyContinue
-    Move-Item $TempFile $Path -Force
+    else {
+        Write-Error "ManifestPath argument or TARGET_MANIFEST environment variable is required."
+        exit 1
+    }
 }
 
-# Parse Arguments using PowerShell's tokenizer to handle quotes correctly
+if (-not (Test-Path $ManifestPath)) {
+    Write-Error "Manifest file not found: $ManifestPath"
+    exit 1
+}
+
+Write-Host "Target manifest: $ManifestPath"
+
+# Parse Arguments using PowerShell's tokenizer with quote support
 function Parse-Args {
     param($Line)
-    $tokens = [System.Management.Automation.PSParser]::Tokenize($Line, [ref]$null)
-    $argsList = @()
-    foreach ($t in $tokens) {
-        if ($t.Type -in @('String', 'CommandArgument')) {
-            if (-not [string]::IsNullOrWhiteSpace($t.Content)) {
-                $argsList += $t.Content
+    
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        return @()
+    }
+    
+    $args = @()
+    $current = ''
+    $inQuote = $false
+    $quoteChar = ''
+    
+    for ($i = 0; $i -lt $Line.Length; $i++) {
+        $char = $Line[$i]
+        
+        if ($inQuote) {
+            if ($char -eq $quoteChar) {
+                # End quote
+                $inQuote = $false
+            }
+            else {
+                $current += $char
+            }
+        }
+        else {
+            if ($char -eq '"' -or $char -eq "'") {
+                # Start quote
+                $inQuote = $true
+                $quoteChar = $char
+            }
+            elseif ($char -match '\s') {
+                # Whitespace outside quotes
+                if ($current) {
+                    $args += $current
+                    $current = ''
+                }
+            }
+            else {
+                $current += $char
             }
         }
     }
-    return $argsList
+    
+    # Add last token
+    if ($current) {
+        $args += $current
+    }
+    
+    if ($inQuote) {
+        throw "Unclosed quote: expected closing $quoteChar"
+    }
+    
+    return $args
+}
+
+# Function to load, modify and save JSON
+function Update-Manifest {
+    param([scriptblock]$Action)
+    
+    $json = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+    
+    # Invoke the modification logic
+    & $Action $json
+    
+    # Save back to file
+    # We rely on 'formatjson' script to fix indentation/sorting later.
+    # Depth 99 ensures deep structures (like bin arrays) aren't truncated.
+    $json | ConvertTo-Json -Depth 99 | Set-Content $ManifestPath -Encoding utf8
 }
 
 try {
-    Write-Host "Processing command: $Command with args: $ArgsLine"
-
-    $manifestPath = Get-ChangedManifestPath
-    Write-Host "Target manifest: $manifestPath"
-
-    $parsedArgs = Parse-Args $ArgsLine
+    $parsedArgs = @(Parse-Args $ArgsLine)
+    Write-Host "Processing command: $Command with args: $($parsedArgs -join ', ')"
 
     switch ($Command) {
         "/set-bin" {
             if ($parsedArgs.Count -eq 1) {
                 # .bin = "value"
-                Run-Jq -Path $manifestPath -Filter '.bin = $a1' -Arg1 $parsedArgs[0]
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue $parsedArgs[0] -Force }
                 Write-Host "Set bin to: $($parsedArgs[0])"
-            } elseif ($parsedArgs.Count -eq 2) {
+            }
+            elseif ($parsedArgs.Count -eq 2) {
                 # .bin = [["exe", "alias"]]
-                Run-Jq -Path $manifestPath -Filter '.bin = [[$a1, $a2]]' -Arg1 $parsedArgs[0] -Arg2 $parsedArgs[1]
+                # Note: We create nested array structure
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue @( @($parsedArgs[0], $parsedArgs[1]) ) -Force }
                 Write-Host "Set bin to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-            } else {
-                Write-Error "Usage: /set-bin <exe> [alias]"
+            }
+            else {
+                Throw "Usage: /set-bin <exe> [alias]"
             }
         }
         "/set-shortcut" {
@@ -92,88 +124,108 @@ try {
             if ($parsedArgs.Count -eq 1) {
                 # Usage: /set-shortcut <name> (Auto-detect target)
                 $shortcutName = $parsedArgs[0]
-
-                # Read manifest to find bin
-                try {
-                    $json = Get-Content $manifestPath -Raw | ConvertFrom-Json
-                    if ($json.bin) {
-                        if ($json.bin -is [string]) {
-                            $target = $json.bin
-                        } elseif ($json.bin -is [array] -and $json.bin.Count -gt 0) {
-                            $first = $json.bin[0]
-                            if ($first -is [string]) {
-                                $target = $first
-                            } elseif ($first -is [array] -and $first.Count -gt 0) {
-                                $target = $first[0]
-                            }
+                
+                # We need to read the file first to auto-detect
+                $currentJson = Get-Content $ManifestPath -Raw | ConvertFrom-Json
+                
+                if ($currentJson.bin) {
+                    if ($currentJson.bin -is [string]) {
+                        $target = $currentJson.bin
+                    }
+                    elseif ($currentJson.bin -is [array] -and $currentJson.bin.Count -gt 0) {
+                        $first = $currentJson.bin[0]
+                        if ($first -is [string]) {
+                            $target = $first
+                        }
+                        elseif ($first -is [array] -and $first.Count -gt 0) {
+                            $target = $first[0]
                         }
                     }
-                } catch {
-                    Write-Error "Failed to parse manifest JSON to infer bin path."
                 }
 
                 if (-not $target) {
-                    Write-Error "Could not automatically detect 'bin' in manifest. Please specify target: /set-shortcut <target> <name>"
+                    Throw "Could not automatically detect 'bin' in manifest. Please specify target: /set-shortcut <target> <name>"
                 }
                 Write-Host "Auto-detected shortcut target: $target"
 
-            } elseif ($parsedArgs.Count -eq 2) {
-                # Usage: /set-shortcut <target> <name>
+            }
+            elseif ($parsedArgs.Count -eq 2) {
                 $target = $parsedArgs[0]
                 $shortcutName = $parsedArgs[1]
-            } else {
-                Write-Error "Usage: /set-shortcut <name> (auto-bin) OR /set-shortcut <target> <name>"
+            }
+            else {
+                Throw "Usage: /set-shortcut <name> (auto-bin) OR /set-shortcut <target> <name>"
             }
 
             # .shortcuts = [["exe", "name"]]
-            Run-Jq -Path $manifestPath -Filter '.shortcuts = [[$a1, $a2]]' -Arg1 $target -Arg2 $shortcutName
+            Update-Manifest { param($j) $j | Add-Member -NotePropertyName "shortcuts" -NotePropertyValue @( @($target, $shortcutName) ) -Force }
             Write-Host "Set shortcut: $target -> $shortcutName"
         }
         "/set-persist" {
-             if ($parsedArgs.Count -eq 1) {
+            if ($parsedArgs.Count -eq 1) {
                 # .persist = "value"
-                Run-Jq -Path $manifestPath -Filter '.persist = $a1' -Arg1 $parsedArgs[0]
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue $parsedArgs[0] -Force }
                 Write-Host "Set persist to: $($parsedArgs[0])"
-            } elseif ($parsedArgs.Count -eq 2) {
+            }
+            elseif ($parsedArgs.Count -eq 2) {
                 # .persist = [["data", "alias"]]
-                Run-Jq -Path $manifestPath -Filter '.persist = [[$a1, $a2]]' -Arg1 $parsedArgs[0] -Arg2 $parsedArgs[1]
+                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue @( @($parsedArgs[0], $parsedArgs[1]) ) -Force }
                 Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
-            } else {
-                Write-Error "Usage: /set-persist <file> [alias]"
+            }
+            else {
+                Throw "Usage: /set-persist <file> [alias]"
             }
         }
         "/set-key" {
-            if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /set-key <key> <value>" }
-            # Dynamic key update: .[$key] = $value
-            # Note: We need to pass key as a separate arg to be safe
-            # But Run-Jq helper only takes 2 args. Let's customize for this case.
-
+            if ($parsedArgs.Count -lt 2) { Throw "Usage: /set-key <key> <value>" }
             $key = $parsedArgs[0]
-            $val = $parsedArgs[1]
+            # Join all remaining args to support multi-word values
+            $val = $parsedArgs[1..($parsedArgs.Count - 1)] -join ' '
 
             if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
-                Write-Error "Invalid key format. Keys must be alphanumeric with underscores."
+                Throw "Invalid key format. Keys must be alphanumeric with underscores."
             }
 
-            Run-Jq -Path $manifestPath -Filter '.[$a1] = $a2' -Arg1 $key -Arg2 $val
+            # Try to parse as JSON for objects/arrays, otherwise keep as string
+            if ($val -match '^[\[\{]') {
+                try {
+                    $val = $val | ConvertFrom-Json
+                    Write-Host "Parsed value as JSON: $($val | ConvertTo-Json -Compress)"
+                }
+                catch {
+                    Write-Host "Keeping value as string (JSON parse failed): $val"
+                }
+            }
+
+            Update-Manifest { 
+                param($j) 
+                if ($j.PSObject.Properties.Match($key).Count) {
+                    $j.$key = $val
+                }
+                else {
+                    $j | Add-Member -NotePropertyName $key -NotePropertyValue $val
+                }
+            }
             Write-Host "Set $key = $val"
         }
         "/list-config" {
-            if ($parsedArgs.Count -gt 0) { Write-Error "Usage: /list-config" }
-            Write-Host "Listing current config for: $manifestPath"
-            $content = Get-Content -Raw $manifestPath
+            if ($parsedArgs.Count -gt 0) { Throw "Usage: /list-config" }
+            Write-Host "Listing current config for: $ManifestPath"
+            $content = Get-Content -Raw $ManifestPath
             try {
                 $json = $content | ConvertFrom-Json
                 Write-Host ($json | ConvertTo-Json -Depth 10)
-            } catch {
+            }
+            catch {
                 Write-Host $content
             }
         }
         default {
-            Write-Error "Unknown command: $Command"
+            Throw "Unknown command: $Command"
         }
     }
-} catch {
+}
+catch {
     Write-Error $_.Exception.Message
     exit 1
 }
