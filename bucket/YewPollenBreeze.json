@@ -17,5 +17,9 @@
             }
         }
     },
-    "bin": "yewpb-windows-amd64.exe"
+    "bin": "yewpb-windows-amd64.exe",
+    "persist": [
+        "test",
+        "test2"
+    ]
 }
