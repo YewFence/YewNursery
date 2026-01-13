@@ -36,6 +36,9 @@ if ($cmd) {
         # Ideally, we should unify this logic.
         # For now, let's find the changed JSON file first.
         $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
+        if ($files -is [array] -and $files.Count -gt 1) {
+            Write-Error "Multiple manifest files found in the changes. Please modify one manifest per PR."
+        }
         if ($files -is [array]) { $files = $files[0] }
 
         if ($files -and (Test-Path $files)) {
