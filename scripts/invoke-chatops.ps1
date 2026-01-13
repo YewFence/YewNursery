@@ -2,7 +2,6 @@
 # Wrapper script to invoke pr-chatops.ps1 based on Comment Body
 
 $ErrorActionPreference = 'Stop'
-. "$PSScriptRoot/utils.ps1"
 
 $body = $env:COMMENT_BODY
 if (-not $body) {
@@ -29,28 +28,20 @@ if ($cmd) {
     Write-Host "Executing: $cmd $argsLine"
 
     # 1. Capture OLD state
-    $manifestPath = $null
+    $manifestPath = $env:TARGET_MANIFEST
+    if (-not $manifestPath) {
+        Write-Error "TARGET_MANIFEST environment variable not found."
+        exit 1
+    }
+    
+    Write-Host "Using target manifest: $manifestPath"
+    
     $oldContent = ""
     try {
-        # Try to resolve manifest path similar to how pr-chatops does,
-        # but here we just do a quick guess for before-state or let pr-chatops handle validation.
-        # Ideally, we should unify this logic.
-        # For now, let's find the changed JSON file first.
-        if ($env:TARGET_MANIFEST) {
-            $manifestPath = $env:TARGET_MANIFEST
-            Write-Host "Using target manifest from environment: $manifestPath"
-        } else {
-            $manifestPath = Get-ChangedManifestPath
-        }
-
-        if ($manifestPath -and (Test-Path $manifestPath)) {
+        if (Test-Path $manifestPath) {
             $oldContent = Get-Content -Raw $manifestPath -ErrorAction SilentlyContinue
         }
     } catch {
-        if ($_.Exception.Message -match "Multiple manifest files found") {
-            Write-Error $_.Exception.Message
-            exit 1
-        }
         Write-Warning "Could not capture pre-execution state: $_"
     }
 
