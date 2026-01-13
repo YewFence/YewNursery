@@ -1,4 +1,4 @@
-on:
+﻿on:
   issue_comment:
     types: [created]
 permissions:
@@ -63,7 +63,7 @@ jobs:
           # Extract command and args. Assuming one command per comment line or just first line.
           # We take the first line that starts with /
           $line = $body -split "`n" | Where-Object { $_ -match '^/' } | Select-Object -First 1
-          
+
           if ($line -match '^(\/[^\s]+)\s+(.*)$') {
               $cmd = $Matches[1]
               $argsLine = $Matches[2]
@@ -71,7 +71,7 @@ jobs:
               $cmd = $Matches[1]
               $argsLine = ""
           }
-          
+
           if ($cmd) {
               Write-Host "Executing: $cmd $argsLine"
               ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine

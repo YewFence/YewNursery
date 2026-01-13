@@ -1,4 +1,4 @@
-# scripts/pr-chatops.ps1
+﻿# scripts/pr-chatops.ps1
 param (
     [string]$Command,
     [string]$ArgsLine
@@ -11,7 +11,7 @@ function Get-ManifestPath {
     # In a PR context, we might rely on git diff or just look for the file mentioned in the PR or just find the single changed json file.
     # For simplicity, assuming the PR mainly touches one app manifest or we pick the first one found in bucket/ that is modified.
     # Actually, relying on git diff --name-only origin/main...HEAD is safer.
-    
+
     $files = git diff --name-only origin/main...HEAD | Where-Object { $_ -match '^bucket\\.*\.json$' -or $_ -match '^bucket/.*\.json$' }
     if (-not $files) {
         Write-Error "No manifest file found in the changes."
@@ -25,7 +25,7 @@ function Update-Json {
     param($Path, $ScriptBlock)
     $json = Get-Content $Path -Raw | ConvertFrom-Json
     & $ScriptBlock $json
-    
+
     # We rely on formatjson.ps1 later to fix indentation, so just dump it here
     $json | ConvertTo-Json -Depth 100 | Set-Content $Path
 }
@@ -45,12 +45,12 @@ function Parse-Args {
 
 try {
     Write-Host "Processing command: $Command with args: $ArgsLine"
-    
+
     $manifestPath = Get-ManifestPath
     Write-Host "Target manifest: $manifestPath"
-    
+
     $parsedArgs = Parse-Args $ArgsLine
-    
+
     switch ($Command) {
         "/set-bin" {
             Update-Json $manifestPath {
@@ -71,7 +71,7 @@ try {
                 param($j)
                 if ($null -eq $j.bin) { $j.bin = @() }
                 if ($j.bin -is [string]) { $j.bin = @($j.bin) }
-                
+
                 if ($parsedArgs.Count -eq 1) {
                     $j.bin += $parsedArgs[0]
                     Write-Host "Added bin: $($parsedArgs[0])"
@@ -87,7 +87,7 @@ try {
             Update-Json $manifestPath {
                 param($j)
                 if ($parsedArgs.Count -lt 2) { Write-Error "Usage: /add-shortcut <target> <name>" }
-                
+
                 if ($null -eq $j.shortcuts) { $j.shortcuts = @() }
                 $j.shortcuts += @($parsedArgs[0], $parsedArgs[1])
                 Write-Host "Added shortcut: $($parsedArgs[0]) -> $($parsedArgs[1])"
