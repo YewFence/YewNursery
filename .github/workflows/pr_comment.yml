@@ -1,6 +1,14 @@
 on:
   issue_comment:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request Number'
+        required: true
+      comment_body:
+        description: 'Comment Body (e.g. /verify, /set-bin ...)'
+        required: true
 permissions:
   contents: write
   pull-requests: write
@@ -13,9 +21,30 @@ jobs:
   pullRequestHandler:
     name: PullRequestHandler
     runs-on: windows-latest
-    if: startsWith(github.event.comment.body, '/verify')
+    if: |
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/verify')) ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.comment_body, '/verify'))
     steps:
-      - uses: actions/checkout@main
+      - name: Get PR Info
+        id: pr_info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number || context.payload.inputs.pr_number;
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('head_repo', pr.head.repo.full_name);
+            core.setOutput('base_ref', pr.base.ref);
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.pr_info.outputs.head_repo }}
+          ref: ${{ steps.pr_info.outputs.head_ref }}
+
       - name: PullRequestHandler
         uses: ScoopInstaller/GithubActions@main
         env:
@@ -26,16 +55,39 @@ jobs:
     name: Check Syntax
     runs-on: ubuntu-latest
     if: |
-      github.event.issue.pull_request &&
-      (startsWith(github.event.comment.body, '/set-bin') ||
-       startsWith(github.event.comment.body, '/set-shortcut') ||
-       startsWith(github.event.comment.body, '/set-persist') ||
-       startsWith(github.event.comment.body, '/set-key') ||
-       startsWith(github.event.comment.body, '/list-config'))
+      (github.event.issue.pull_request &&
+       (startsWith(github.event.comment.body, '/set-bin') ||
+        startsWith(github.event.comment.body, '/set-shortcut') ||
+        startsWith(github.event.comment.body, '/set-persist') ||
+        startsWith(github.event.comment.body, '/set-key') ||
+        startsWith(github.event.comment.body, '/list-config'))) ||
+      (github.event_name == 'workflow_dispatch' &&
+       (startsWith(inputs.comment_body, '/set-bin') ||
+        startsWith(inputs.comment_body, '/set-shortcut') ||
+        startsWith(inputs.comment_body, '/set-persist') ||
+        startsWith(inputs.comment_body, '/set-key') ||
+        startsWith(inputs.comment_body, '/list-config')))
     steps:
+      - name: Get PR Info
+        id: pr_info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number || context.payload.inputs.pr_number;
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('head_repo', pr.head.repo.full_name);
+            core.setOutput('base_ref', pr.base.ref);
+
       - name: Checkout PR (for scripts)
         uses: actions/checkout@v4
         with:
+          repository: ${{ steps.pr_info.outputs.head_repo }}
+          ref: ${{ steps.pr_info.outputs.head_ref }}
           sparse-checkout: scripts
 
       - name: Acknowledge Command
@@ -44,14 +96,39 @@ jobs:
           REACTION_CONTENT: eyes
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+              console.log('Skipping acknowledgment reaction for workflow_dispatch');
+              return;
+            }
             const script = require('./scripts/github/add-reaction.js');
             await script({github, context, core});
 
       - name: Validate Command Syntax
         uses: actions/github-script@v7
+        env:
+            COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
         with:
           script: |
             const script = require('./scripts/github/validate-syntax.js');
+            
+            if (context.eventName === 'workflow_dispatch') {
+                // Mock payload
+                context.payload.comment = { 
+                    body: process.env.COMMENT_BODY,
+                    id: 1 
+                };
+                
+                // Mock context.issue
+                Object.defineProperty(context, 'issue', {
+                    get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
+                });
+
+                // Mock reactions API
+                github.rest.reactions.createForIssueComment = async (args) => {
+                    console.log(`[Mock] Adding reaction ${args.content} to comment ${args.comment_id}`);
+                    return { data: {} };
+                };
+            }
             await script({github, context, core});
 
   chatops:
@@ -64,13 +141,15 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const prNumber = context.issue.number || context.payload.inputs.pr_number;
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number
+              pull_number: prNumber
             });
             core.setOutput('head_ref', pr.head.ref);
             core.setOutput('head_repo', pr.head.repo.full_name);
+            core.setOutput('base_ref', pr.base.ref);
 
       - name: Checkout PR
         uses: actions/checkout@v4
@@ -86,17 +165,30 @@ jobs:
           REACTION_CONTENT: eyes
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+              console.log('Skipping acknowledgment reaction for workflow_dispatch');
+              return;
+            }
             const script = require('./scripts/github/add-reaction.js');
-            await script({github, context, core});
+            try { await script({github, context, core}); } catch(e) {}
 
-      - name: Ensure Main is fetched
-        run: git fetch origin ${{ github.event.repository.default_branch }}
+      - name: Fetch Base Branch
+        run: |
+          git remote add upstream https://github.com/${{ github.repository }}
+          git fetch upstream ${{ steps.pr_info.outputs.base_ref }}
 
       - name: Checkout Scoop Core (for formatjson)
         uses: actions/checkout@v4
         with:
           repository: ScoopInstaller/Scoop
           path: scoop_core
+
+      - name: Install Scoop
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+          "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure Git
         run: |
@@ -113,7 +205,8 @@ jobs:
         shell: pwsh
         env:
           SCOOP_HOME: ${{ github.workspace }}\scoop_core
-          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_BODY: ${{ github.event.comment.body || inputs.comment_body }}
+          CHAT_BASE_REF: upstream/${{ steps.pr_info.outputs.base_ref }}
         run: |
           ./scripts/invoke-chatops.ps1
 
@@ -136,6 +229,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+                context.payload.comment = { id: 1 };
+                Object.defineProperty(context, 'issue', {
+                    get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
+                });
+                github.rest.reactions.createForIssueComment = async () => ({ data: {} });
+            }
             const script = require('./scripts/github/report-success.js');
             await script({github, context, core});
 
@@ -144,5 +244,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            if (context.eventName === 'workflow_dispatch') {
+                context.payload.comment = { id: 1 };
+                Object.defineProperty(context, 'issue', {
+                    get: () => ({ owner: context.repo.owner, repo: context.repo.repo, number: parseInt(context.payload.inputs.pr_number) })
+                });
+                github.rest.reactions.createForIssueComment = async () => ({ data: {} });
+            }
             const script = require('./scripts/github/report-failure.js');
             await script({github, context, core});

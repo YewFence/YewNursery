@@ -1,5 +1,10 @@
 function Get-ChangedManifestPath {
-    $files = git diff --name-only --diff-filter=ACM origin/main...HEAD -- bucket | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
+    $baseRef = if ($env:CHAT_BASE_REF) { $env:CHAT_BASE_REF } else { "origin/main" }
+    Write-Host "[DEBUG] BaseRef: $baseRef"
+    $rawFiles = git diff --name-only --diff-filter=ACM "$baseRef...HEAD" -- bucket
+    Write-Host "[DEBUG] Raw Diff: $($rawFiles -join ', ')"
+    $files = $rawFiles | Where-Object { $_ -match '^bucket[\\/].+\.json$' }
+    Write-Host "[DEBUG] Filtered Files: $($files -join ', ')"
     if (-not $files) {
         Write-Error "No manifest file found in the changes."
     }
