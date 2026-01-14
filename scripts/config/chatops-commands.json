@@ -1,0 +1,37 @@
+{
+  "/set-bin": {
+    "minArgs": 1,
+    "maxArgs": 2,
+    "usage": "/set-bin <exe> [alias]"
+  },
+  "/set-shortcut": {
+    "minArgs": 1,
+    "maxArgs": 2,
+    "usage": "/set-shortcut <name> (auto) OR /set-shortcut <target> <name>"
+  },
+  "/set-persist": {
+    "minArgs": 1,
+    "maxArgs": 2,
+    "usage": "/set-persist <file> [alias]"
+  },
+  "/set-key": {
+    "minArgs": 2,
+    "maxArgs": null,
+    "usage": "/set-key <key> <value>"
+  },
+  "/clean": {
+    "minArgs": 1,
+    "maxArgs": 1,
+    "usage": "/clean <field>"
+  },
+  "/list-config": {
+    "minArgs": 0,
+    "maxArgs": 0,
+    "usage": "/list-config (no arguments)"
+  },
+  "/help": {
+    "minArgs": 0,
+    "maxArgs": 0,
+    "usage": "/help (no arguments)"
+  }
+}
