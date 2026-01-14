@@ -1,7 +1,7 @@
 module.exports = async ({ github, context, core }) => {
   const fs = require('fs');
   const path = require('path');
-  
+
   // Load command definitions
   const configPath = path.join(process.env.GITHUB_WORKSPACE || '.', 'scripts/config/chatops-commands.json');
   let commands = {};
@@ -71,12 +71,12 @@ module.exports = async ({ github, context, core }) => {
 
   if (!error) {
     const commandConfig = commands[cmd];
-    
+
     if (!commandConfig) {
       error = `Unknown command: ${cmd}`;
     } else {
       const { minArgs, maxArgs, usage } = commandConfig;
-      
+
       if (minArgs !== null && minArgs !== undefined && args.length < minArgs) {
         error = `Usage: \`${usage}\``;
       } else if (maxArgs !== null && maxArgs !== undefined && args.length > maxArgs) {

@@ -111,7 +111,7 @@ jobs:
           HEAD_REPO="${{ steps.pr_info.outputs.head_repo }}"
           BASE_REPO="${{ github.repository }}"
           BASE_REF="${{ steps.pr_info.outputs.base_ref }}"
-          
+
           if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
             git remote add base_repo https://github.com/$BASE_REPO
             git fetch base_repo $BASE_REF --depth=50

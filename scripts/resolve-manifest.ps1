@@ -17,10 +17,10 @@ if ($CommentBody -match '^\s*/help') {
 }
 
 # Filter for valid manifest files
-$files = @($AllChangedFiles -split ' ' | Where-Object { 
-    $_ -match '\.json$' -and 
-    $_ -notmatch '\.example\.json$' -and 
-    $_ -notmatch '\.template\.json$' 
+$files = @($AllChangedFiles -split ' ' | Where-Object {
+    $_ -match '\.json$' -and
+    $_ -notmatch '\.example\.json$' -and
+    $_ -notmatch '\.template\.json$'
 })
 
 if ($files.Count -eq 0) {

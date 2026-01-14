@@ -45,9 +45,9 @@ if ($cmd) {
         Write-Error "TARGET_MANIFEST environment variable not found."
         exit 1
     }
-    
+
     Write-Host "Using target manifest: $manifestPath"
-    
+
     $oldContent = ""
     try {
         if (Test-Path $manifestPath) {
@@ -63,9 +63,9 @@ if ($cmd) {
     try {
         & ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine -ManifestPath $manifestPath *>&1 | Tee-Object -FilePath "chatops.log"
         # Check both $LASTEXITCODE and $? to catch all failure scenarios
-        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { 
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
             $scriptFailed = $true
-            throw "Script failed with exit code $LASTEXITCODE" 
+            throw "Script failed with exit code $LASTEXITCODE"
         }
         if (-not $?) {
             $scriptFailed = $true
@@ -75,7 +75,7 @@ if ($cmd) {
         $scriptFailed = $true
         Write-Error "ChatOps execution failed: $_"
     }
-    
+
     if ($scriptFailed) {
         exit 1
     }
