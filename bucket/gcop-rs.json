@@ -1,6 +1,6 @@
 {
     "version": "0.6.0",
-    "description": "🤖 AI-powered Git commit message generator and code reviewer - Support Claude, OpenAI, Ollama",
+    "description": "New desc",
     "homepage": "https://github.com/AptS-1547/gcop-rs",
     "license": "MIT",
     "architecture": {
