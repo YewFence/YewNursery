@@ -27,15 +27,27 @@ if ($line -match '^(\/[^\s]+)\s+(.*)$') {
 if ($cmd) {
     Write-Host "Executing: $cmd $argsLine"
 
+    if ($cmd -eq "/help") {
+        Write-Host "Help command detected. Generating guide report."
+        $guidePath = Join-Path $PSScriptRoot "templates\chatops-usage-guide.md"
+        if (Test-Path $guidePath) {
+            Get-Content $guidePath | Out-File "chatops-report.md" -Encoding utf8
+            exit 0
+        } else {
+            Write-Error "Guide template not found at $guidePath"
+            exit 1
+        }
+    }
+
     # 1. Capture OLD state
     $manifestPath = $env:TARGET_MANIFEST
     if (-not $manifestPath) {
         Write-Error "TARGET_MANIFEST environment variable not found."
         exit 1
     }
-    
+
     Write-Host "Using target manifest: $manifestPath"
-    
+
     $oldContent = ""
     try {
         if (Test-Path $manifestPath) {
@@ -51,9 +63,9 @@ if ($cmd) {
     try {
         & ./scripts/pr-chatops.ps1 -Command $cmd -ArgsLine $argsLine -ManifestPath $manifestPath *>&1 | Tee-Object -FilePath "chatops.log"
         # Check both $LASTEXITCODE and $? to catch all failure scenarios
-        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { 
+        if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
             $scriptFailed = $true
-            throw "Script failed with exit code $LASTEXITCODE" 
+            throw "Script failed with exit code $LASTEXITCODE"
         }
         if (-not $?) {
             $scriptFailed = $true
@@ -63,7 +75,7 @@ if ($cmd) {
         $scriptFailed = $true
         Write-Error "ChatOps execution failed: $_"
     }
-    
+
     if ($scriptFailed) {
         exit 1
     }

@@ -254,6 +254,7 @@ $TemplateData = @{
     "ShortcutStatus" = $ShortcutStatus
     "FileTree"       = $FileTree
     "CandidatesStr"  = $CandidatesStr
+    "ChatOpsGuide"   = (Get-Content -Path (Join-Path $PSScriptRoot "templates\chatops-usage-guide.md") -Raw -Encoding UTF8)
 }
 
 $TemplatePath = Join-Path $PSScriptRoot "templates\new-app-report.md"

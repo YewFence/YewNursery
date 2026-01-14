@@ -1,4 +1,19 @@
 module.exports = async ({ github, context, core }) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  // Load command definitions
+  const configPath = path.join(process.env.GITHUB_WORKSPACE || '.', 'scripts/config/chatops-commands.json');
+  let commands = {};
+  try {
+    commands = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (e) {
+    console.error(`Failed to load command config from ${configPath}:`, e);
+    // Fallback or fail? Failing is safer to prevent executing unknown logic.
+    core.setFailed(`Configuration Error: Could not load chatops-commands.json. ${e.message}`);
+    return;
+  }
+
   const body = context.payload.comment.body;
   // Get first line starting with /
   const line = body.split('\n').find(l => l.trim().startsWith('/'));
@@ -55,28 +70,18 @@ module.exports = async ({ github, context, core }) => {
   console.log(`Command: ${cmd}, Args: ${JSON.stringify(args)}`);
 
   if (!error) {
-    switch (cmd) {
-      case '/set-bin':
-        if (args.length < 1 || args.length > 2) error = "Usage: `/set-bin <exe> [alias]`";
-        break;
-      case '/set-shortcut':
-        if (args.length < 1 || args.length > 2) error = "Usage: `/set-shortcut <name>` (auto) OR `/set-shortcut <target> <name>`";
-        break;
-      case '/set-persist':
-        if (args.length < 1 || args.length > 2) error = "Usage: `/set-persist <file> [alias]`";
-        break;
-      case '/set-key':
-        if (args.length < 2) error = "Usage: `/set-key <key> <value>`";
-        break;
-      case '/clean':
-        if (args.length !== 1) error = "Usage: `/clean <field>`";
-        break;
-      case '/list-config':
-        if (args.length > 0) error = "Usage: `/list-config` (no arguments)";
-        break;
-      default:
-        // Should be caught by 'if', but just in case
-        error = `Unknown command: ${cmd}`;
+    const commandConfig = commands[cmd];
+
+    if (!commandConfig) {
+      error = `Unknown command: ${cmd}`;
+    } else {
+      const { minArgs, maxArgs, usage } = commandConfig;
+
+      if (minArgs !== null && minArgs !== undefined && args.length < minArgs) {
+        error = `Usage: \`${usage}\``;
+      } else if (maxArgs !== null && maxArgs !== undefined && args.length > maxArgs) {
+        error = `Usage: \`${usage}\``;
+      }
     }
   }
 
@@ -84,19 +89,13 @@ module.exports = async ({ github, context, core }) => {
     console.log("Validation failed:", error);
 
     // Report failure
+    const usageGuide = fs.readFileSync('scripts/templates/chatops-usage-guide.md', 'utf8');
     const failBody = `### ⚠️ ChatOps Syntax Error
 
     **Command:** \`${line}\`
     **Error:** ${error}
 
-    **Usage Guide:**
-    - \`/set-bin <exe> [alias]\` (Appends if exists)
-    - \`/set-shortcut <name> (auto-detect target)\` (Appends if exists)
-    - \`/set-shortcut <target> <name>\` (Appends if exists)
-    - \`/set-persist <file> [alias]\` (Appends if exists)
-    - \`/set-key <key> <value>\`
-    - \`/clean <field>\`
-    - \`/list-config\`
+    ${usageGuide}
     `;
 
     await github.rest.issues.createComment({

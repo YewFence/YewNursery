@@ -107,6 +107,7 @@ scoop install YewNursery/<app-name>
 | `/set-shortcut` | `/set-shortcut "My App"`<br>`/set-shortcut "gui.exe" "My App"` | 设置开始菜单快捷方式 (自动识别 bin 或手动指定) |
 | `/set-persist` | `/set-persist "conf.ini"`<br>`/set-persist "data" "data_dir"` | 设置持久化文件或目录 |
 | `/set-key` | `/set-key "homepage" "https://example.com"` | 修改任意清单字段的值 |
+| `/clean` | `/clean "shortcuts"` | 清除指定字段的所有内容 |
 | `/list-config` | `/list-config` | 查看当前配置状态 |
 
 

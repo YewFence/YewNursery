@@ -28,19 +28,19 @@ Write-Host "Target manifest: $ManifestPath"
 # Parse Arguments using PowerShell's tokenizer with quote support
 function Parse-Args {
     param($Line)
-    
+
     if ([string]::IsNullOrWhiteSpace($Line)) {
         return @()
     }
-    
+
     $args = @()
     $current = ''
     $inQuote = $false
     $quoteChar = ''
-    
+
     for ($i = 0; $i -lt $Line.Length; $i++) {
         $char = $Line[$i]
-        
+
         if ($inQuote) {
             if ($char -eq $quoteChar) {
                 # End quote
@@ -68,26 +68,26 @@ function Parse-Args {
             }
         }
     }
-    
+
     # Add last token
     if ($current) {
         $args += $current
     }
-    
+
     if ($inQuote) {
         throw "Unclosed quote: expected closing $quoteChar"
     }
-    
+
     return $args
 }
 
 # Helper to append or set property
 function Add-OrAppend-Property {
     param($j, $prop, $val)
-    
+
     if ($j.PSObject.Properties.Match($prop).Count) {
         $current = $j.$prop
-        
+
         # If current is explicitly null, treat as new
         if ($null -eq $current) {
             $j.$prop = $val
@@ -102,9 +102,9 @@ function Add-OrAppend-Property {
         else {
             $currentArray = @($current)
         }
-        
-        # Append new value. 
-        # We use @( , $val ) to ensure $val is treated as a single item 
+
+        # Append new value.
+        # We use @( , $val ) to ensure $val is treated as a single item
         # even if it is an array (like ["exe", "alias"]).
         $j.$prop = $currentArray + @( , $val )
     }
@@ -116,12 +116,12 @@ function Add-OrAppend-Property {
 # Function to load, modify and save JSON
 function Update-Manifest {
     param([scriptblock]$Action)
-    
+
     $json = Get-Content $ManifestPath -Raw | ConvertFrom-Json
-    
+
     # Invoke the modification logic
     & $Action $json
-    
+
     # Save back to file
     # We rely on 'formatjson' script to fix indentation/sorting later.
     # Depth 99 ensures deep structures (like bin arrays) aren't truncated.
@@ -156,10 +156,10 @@ try {
             if ($parsedArgs.Count -eq 1) {
                 # Usage: /set-shortcut <name> (Auto-detect target)
                 $shortcutName = $parsedArgs[0]
-                
+
                 # We need to read the file first to auto-detect
                 $currentJson = Get-Content $ManifestPath -Raw | ConvertFrom-Json
-                
+
                 if ($currentJson.bin) {
                     if ($currentJson.bin -is [string]) {
                         $target = $currentJson.bin
@@ -232,8 +232,8 @@ try {
             }
 
             # /set-key behavior remains "overwrite" as it targets specific keys
-            Update-Manifest { 
-                param($j) 
+            Update-Manifest {
+                param($j)
                 if ($j.PSObject.Properties.Match($key).Count) {
                     $j.$key = $val
                 }
@@ -246,8 +246,8 @@ try {
         "/clean" {
             if ($parsedArgs.Count -ne 1) { Throw "Usage: /clean <field>" }
             $field = $parsedArgs[0]
-            Update-Manifest { 
-                param($j) 
+            Update-Manifest {
+                param($j)
                 if ($j.PSObject.Properties.Match($field).Count) {
                     $j.PSObject.Properties.Remove($field)
                 }
