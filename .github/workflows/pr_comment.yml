@@ -55,8 +55,8 @@ jobs:
     name: ChatOps
     runs-on: ubuntu-latest
     if: |
-      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/')) ||
-      (github.event_name == 'workflow_dispatch' && startsWith(inputs.comment_body, '/'))
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/') && !startsWith(github.event.comment.body, '/verify')) ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.comment_body, '/') && !startsWith(inputs.comment_body, '/verify'))
     steps:
       - name: Acknowledge Command
         uses: actions/github-script@v7
