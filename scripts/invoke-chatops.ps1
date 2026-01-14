@@ -27,6 +27,18 @@ if ($line -match '^(\/[^\s]+)\s+(.*)$') {
 if ($cmd) {
     Write-Host "Executing: $cmd $argsLine"
 
+    if ($cmd -eq "/help") {
+        Write-Host "Help command detected. Generating guide report."
+        $guidePath = Join-Path $PSScriptRoot "templates\chatops-usage-guide.md"
+        if (Test-Path $guidePath) {
+            Get-Content $guidePath | Out-File "chatops-report.md" -Encoding utf8
+            exit 0
+        } else {
+            Write-Error "Guide template not found at $guidePath"
+            exit 1
+        }
+    }
+
     # 1. Capture OLD state
     $manifestPath = $env:TARGET_MANIFEST
     if (-not $manifestPath) {

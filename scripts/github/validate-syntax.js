@@ -75,6 +75,9 @@ module.exports = async ({ github, context, core }) => {
       case '/list-config':
         if (args.length > 0) error = "Usage: `/list-config` (no arguments)";
         break;
+      case '/help':
+        if (args.length > 0) error = "Usage: `/help` (no arguments)";
+        break;
       default:
         // Should be caught by 'if', but just in case
         error = `Unknown command: ${cmd}`;

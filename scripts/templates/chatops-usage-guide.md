@@ -10,3 +10,4 @@ Use these commands in PR comments to update the manifest automatically:
 | `/set-key` | `/set-key "description" "New desc"` | Update any manifest field manually. |
 | `/clean` | `/clean "shortcuts"` | Remove a field from the manifest. |
 | `/list-config` | `/list-config` | Show current configuration status. |
+| `/help` | `/help` | Show this usage guide. |
