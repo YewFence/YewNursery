@@ -60,12 +60,14 @@ jobs:
         startsWith(github.event.comment.body, '/set-shortcut') ||
         startsWith(github.event.comment.body, '/set-persist') ||
         startsWith(github.event.comment.body, '/set-key') ||
+        startsWith(github.event.comment.body, '/clean') ||
         startsWith(github.event.comment.body, '/list-config'))) ||
       (github.event_name == 'workflow_dispatch' &&
        (startsWith(inputs.comment_body, '/set-bin') ||
         startsWith(inputs.comment_body, '/set-shortcut') ||
         startsWith(inputs.comment_body, '/set-persist') ||
         startsWith(inputs.comment_body, '/set-key') ||
+        startsWith(inputs.comment_body, '/clean') ||
         startsWith(inputs.comment_body, '/list-config')))
     steps:
       - name: Acknowledge Command
