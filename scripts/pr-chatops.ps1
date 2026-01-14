@@ -81,6 +81,38 @@ function Parse-Args {
     return $args
 }
 
+# Helper to append or set property
+function Add-OrAppend-Property {
+    param($j, $prop, $val)
+    
+    if ($j.PSObject.Properties.Match($prop).Count) {
+        $current = $j.$prop
+        
+        # If current is explicitly null, treat as new
+        if ($null -eq $current) {
+            $j.$prop = $val
+            return
+        }
+
+        # Normalize current to array
+        $currentArray = @()
+        if ($current -is [array]) {
+            $currentArray = $current
+        }
+        else {
+            $currentArray = @($current)
+        }
+        
+        # Append new value. 
+        # We use @( , $val ) to ensure $val is treated as a single item 
+        # even if it is an array (like ["exe", "alias"]).
+        $j.$prop = $currentArray + @( , $val )
+    }
+    else {
+        $j | Add-Member -NotePropertyName $prop -NotePropertyValue $val
+    }
+}
+
 # Function to load, modify and save JSON
 function Update-Manifest {
     param([scriptblock]$Action)
@@ -104,14 +136,14 @@ try {
         "/set-bin" {
             if ($parsedArgs.Count -eq 1) {
                 # .bin = "value"
-                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue $parsedArgs[0] -Force }
-                Write-Host "Set bin to: $($parsedArgs[0])"
+                Update-Manifest { param($j) Add-OrAppend-Property $j "bin" $parsedArgs[0] }
+                Write-Host "Added bin: $($parsedArgs[0])"
             }
             elseif ($parsedArgs.Count -eq 2) {
                 # .bin = [["exe", "alias"]]
-                # Note: We create nested array structure
-                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "bin" -NotePropertyValue @( , @($parsedArgs[0], $parsedArgs[1]) ) -Force }
-                Write-Host "Set bin to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
+                $val = @($parsedArgs[0], $parsedArgs[1])
+                Update-Manifest { param($j) Add-OrAppend-Property $j "bin" $val }
+                Write-Host "Added bin alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
             }
             else {
                 Throw "Usage: /set-bin <exe> [alias]"
@@ -158,19 +190,21 @@ try {
             }
 
             # .shortcuts = [["exe", "name"]]
-            Update-Manifest { param($j) $j | Add-Member -NotePropertyName "shortcuts" -NotePropertyValue @( , @($target, $shortcutName) ) -Force }
-            Write-Host "Set shortcut: $target -> $shortcutName"
+            $val = @($target, $shortcutName)
+            Update-Manifest { param($j) Add-OrAppend-Property $j "shortcuts" $val }
+            Write-Host "Added shortcut: $target -> $shortcutName"
         }
         "/set-persist" {
             if ($parsedArgs.Count -eq 1) {
                 # .persist = "value"
-                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue $parsedArgs[0] -Force }
-                Write-Host "Set persist to: $($parsedArgs[0])"
+                Update-Manifest { param($j) Add-OrAppend-Property $j "persist" $parsedArgs[0] }
+                Write-Host "Added persist: $($parsedArgs[0])"
             }
             elseif ($parsedArgs.Count -eq 2) {
                 # .persist = [["data", "alias"]]
-                Update-Manifest { param($j) $j | Add-Member -NotePropertyName "persist" -NotePropertyValue @( , @($parsedArgs[0], $parsedArgs[1]) ) -Force }
-                Write-Host "Set persist to alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
+                $val = @($parsedArgs[0], $parsedArgs[1])
+                Update-Manifest { param($j) Add-OrAppend-Property $j "persist" $val }
+                Write-Host "Added persist alias: $($parsedArgs[0]) -> $($parsedArgs[1])"
             }
             else {
                 Throw "Usage: /set-persist <file> [alias]"
@@ -197,6 +231,7 @@ try {
                 }
             }
 
+            # /set-key behavior remains "overwrite" as it targets specific keys
             Update-Manifest { 
                 param($j) 
                 if ($j.PSObject.Properties.Match($key).Count) {
@@ -207,6 +242,17 @@ try {
                 }
             }
             Write-Host "Set $key = $val"
+        }
+        "/clean" {
+            if ($parsedArgs.Count -ne 1) { Throw "Usage: /clean <field>" }
+            $field = $parsedArgs[0]
+            Update-Manifest { 
+                param($j) 
+                if ($j.PSObject.Properties.Match($field).Count) {
+                    $j.PSObject.Properties.Remove($field)
+                }
+            }
+            Write-Host "Cleaned field: $field"
         }
         "/list-config" {
             if ($parsedArgs.Count -gt 0) { Throw "Usage: /list-config" }

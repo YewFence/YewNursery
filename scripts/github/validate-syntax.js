@@ -68,6 +68,9 @@ module.exports = async ({ github, context, core }) => {
       case '/set-key':
         if (args.length < 2) error = "Usage: `/set-key <key> <value>`";
         break;
+      case '/clean':
+        if (args.length !== 1) error = "Usage: `/clean <field>`";
+        break;
       case '/list-config':
         if (args.length > 0) error = "Usage: `/list-config` (no arguments)";
         break;
@@ -87,11 +90,12 @@ module.exports = async ({ github, context, core }) => {
     **Error:** ${error}
 
     **Usage Guide:**
-    - \`/set-bin <exe> [alias]\`
-    - \`/set-shortcut <name> (auto-detect target)\`
-    - \`/set-shortcut <target> <name>\`
-    - \`/set-persist <file> [alias]\`
+    - \`/set-bin <exe> [alias]\` (Appends if exists)
+    - \`/set-shortcut <name> (auto-detect target)\` (Appends if exists)
+    - \`/set-shortcut <target> <name>\` (Appends if exists)
+    - \`/set-persist <file> [alias]\` (Appends if exists)
     - \`/set-key <key> <value>\`
+    - \`/clean <field>\`
     - \`/list-config\`
     `;
 
