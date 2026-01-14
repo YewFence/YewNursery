@@ -1,4 +1,5 @@
 module.exports = async ({ github, context, core }) => {
+  const fs = require('fs');
   const body = context.payload.comment.body;
   // Get first line starting with /
   const line = body.split('\n').find(l => l.trim().startsWith('/'));
@@ -84,19 +85,13 @@ module.exports = async ({ github, context, core }) => {
     console.log("Validation failed:", error);
 
     // Report failure
+    const usageGuide = fs.readFileSync('scripts/templates/chatops-usage-guide.md', 'utf8');
     const failBody = `### ⚠️ ChatOps Syntax Error
 
     **Command:** \`${line}\`
     **Error:** ${error}
 
-    **Usage Guide:**
-    - \`/set-bin <exe> [alias]\` (Appends if exists)
-    - \`/set-shortcut <name> (auto-detect target)\` (Appends if exists)
-    - \`/set-shortcut <target> <name>\` (Appends if exists)
-    - \`/set-persist <file> [alias]\` (Appends if exists)
-    - \`/set-key <key> <value>\`
-    - \`/clean <field>\`
-    - \`/list-config\`
+    ${usageGuide}
     `;
 
     await github.rest.issues.createComment({
