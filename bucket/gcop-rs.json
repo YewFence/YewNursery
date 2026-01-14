@@ -17,5 +17,8 @@
             }
         }
     },
-    "bin": "gcop-rs-v0.6.0-windows-amd64.exe"
+    "bin": [
+        "gcop-rs-v0.6.0-windows-amd64.exe",
+        "gcop-rs"
+    ]
 }
