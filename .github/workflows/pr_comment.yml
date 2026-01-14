@@ -55,22 +55,8 @@ jobs:
     name: ChatOps
     runs-on: ubuntu-latest
     if: |
-      (github.event.issue.pull_request &&
-       (startsWith(github.event.comment.body, '/set-bin') ||
-        startsWith(github.event.comment.body, '/set-shortcut') ||
-        startsWith(github.event.comment.body, '/set-persist') ||
-        startsWith(github.event.comment.body, '/set-key') ||
-        startsWith(github.event.comment.body, '/clean') ||
-        startsWith(github.event.comment.body, '/list-config') ||
-        startsWith(github.event.comment.body, '/help'))) ||
-      (github.event_name == 'workflow_dispatch' &&
-       (startsWith(inputs.comment_body, '/set-bin') ||
-        startsWith(inputs.comment_body, '/set-shortcut') ||
-        startsWith(inputs.comment_body, '/set-persist') ||
-        startsWith(inputs.comment_body, '/set-key') ||
-        startsWith(inputs.comment_body, '/clean') ||
-        startsWith(inputs.comment_body, '/list-config') ||
-        startsWith(inputs.comment_body, '/help')))
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/')) ||
+      (github.event_name == 'workflow_dispatch' && startsWith(inputs.comment_body, '/'))
     steps:
       - name: Acknowledge Command
         uses: actions/github-script@v7
