@@ -21,6 +21,10 @@
         [
             "gcop-rs-v0.6.0-windows-amd64.exe",
             "gcop-rs"
+        ],
+        [
+            "test",
+            "test1"
         ]
     ]
 }
