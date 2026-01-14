@@ -16,5 +16,9 @@
                 "url": "https://github.com/AptS-1547/gcop-rs/releases/download/v$version/gcop-rs-v$version-windows-amd64.exe"
             }
         }
-    }
+    },
+    "bin": [
+        "gcop-rs-v0.6.0-windows-amd64.exe",
+        "gcop-rs"
+    ]
 }
