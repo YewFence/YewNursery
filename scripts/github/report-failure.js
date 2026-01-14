@@ -19,8 +19,13 @@ module.exports = async ({ github, context, core }) => {
     log = log.substring(0, 2000) + '\n... (truncated)';
   }
 
-  const usageGuide = fs.readFileSync('scripts/templates/chatops-usage-guide.md', 'utf8');
-
+  let usageGuide = '';
+  try {
+    usageGuide = fs.readFileSync('scripts/templates/chatops-usage-guide.md', 'utf8');
+  } catch (e) {
+    usageGuide = '_Usage guide unavailable._';
+    console.error('Failed to load usage guide:', e.message);
+  }
   const body = `### ❌ ChatOps Command Failed
 
 **Error Details:**
