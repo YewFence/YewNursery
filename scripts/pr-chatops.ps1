@@ -90,7 +90,7 @@ function Add-OrAppend-Property {
 
         # If current is explicitly null, treat as new
         if ($null -eq $current) {
-            $j.$prop = $val
+            $j.$prop = @( , $val )
             return
         }
 
@@ -109,7 +109,7 @@ function Add-OrAppend-Property {
         $j.$prop = $currentArray + @( , $val )
     }
     else {
-        $j | Add-Member -NotePropertyName $prop -NotePropertyValue $val
+        $j | Add-Member -NotePropertyName $prop -NotePropertyValue @( , $val )
     }
 }
 
