@@ -19,6 +19,13 @@ module.exports = async ({ github, context, core }) => {
     log = log.substring(0, 2000) + '\n... (truncated)';
   }
 
+  let usageGuide = '';
+  try {
+    usageGuide = fs.readFileSync('scripts/templates/chatops-usage-guide.md', 'utf8');
+  } catch (e) {
+    usageGuide = '_Usage guide unavailable._';
+    console.error('Failed to load usage guide:', e.message);
+  }
   const body = `### ❌ ChatOps Command Failed
 
 **Error Details:**
@@ -26,13 +33,7 @@ module.exports = async ({ github, context, core }) => {
 ${log}
 \`\`\`
 
-**Usage Guide:**
-- \`/set-bin <exe> [alias]\`
-- \`/set-shortcut <name> (auto-detect target)\`
-- \`/set-shortcut <target> <name>\`
-- \`/set-persist <file> [alias]\`
-- \`/set-key <key> <value>\`
-- \`/list-config\`
+${usageGuide}
 
 [View Action Log](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
 `;
