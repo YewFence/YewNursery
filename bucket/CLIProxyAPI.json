@@ -1,12 +1,12 @@
 {
-    "version": "6.6.105",
+    "version": "6.6.106",
     "description": "Wrap Gemini CLI, Antigravity, ChatGPT Codex, Claude Code, Qwen Code, iFlow as an OpenAI/Gemini/Claude/Codex compatible API service, allowing you to enjoy the free Gemini 2.5 Pro, GPT 5, Claude, Qwen model through API",
     "homepage": "https://github.com/router-for-me/CLIProxyAPI",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/router-for-me/CLIProxyAPI/releases/download/v6.6.105/CLIProxyAPI_6.6.105_windows_amd64.zip",
-            "hash": "062c26e7a75b8f0da80186ec0d9cabd4ed1f122e30f46c8b6a9471f401d68777"
+            "url": "https://github.com/router-for-me/CLIProxyAPI/releases/download/v6.6.106/CLIProxyAPI_6.6.106_windows_amd64.zip",
+            "hash": "117870adc9a1f0706b10f27e9e7cf97fd991e79715da78c71239818768db4894"
         }
     },
     "bin": "cli-proxy-api.exe",
