@@ -17,10 +17,6 @@
             }
         }
     },
-    "bin": [
-        [
-            "gcop-rs-v0.6.0-windows-amd64.exe",
-            "gcop-rs"
-        ]
-    ]
+    "pre_install": "Rename-Item \"$dir\\gcop-rs-v$version-windows-amd64.exe\" 'gcop-rs.exe'",
+    "bin": "gcop-rs.exe"
 }
