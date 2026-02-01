@@ -1,21 +1,20 @@
 {
-  "version": "0.1.0",
-  "description": "一个用于管理秘密配置文件的 CLI 工具，调用 SOPS + Age 进行加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）",
-  "homepage": "https://github.com/YewFence/YewSeal",
-  "license": "Unknown",
-  "architecture": {
-    "64bit": {
-      "url": "https://github.com/YewFence/YewSeal/releases/download/v0.1.0/yews-windows-amd64.zip",
-      "hash": "21865152138432D8D868D1BE666E82A93DAFFE85950B9D77B7C99673A29D639F"
-    }
-  },
-  "checkver": "github",
-  "autoupdate": {
+    "version": "0.1.0",
+    "description": "一个用于管理秘密配置文件的 CLI 工具，调用 SOPS + Age 进行加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）",
+    "homepage": "https://github.com/YewFence/YewSeal",
+    "license": "Unknown",
     "architecture": {
-      "64bit": {
-        "url": "https://github.com/YewFence/YewSeal/releases/download/v$version/yews-windows-amd64.zip"
-      }
+        "64bit": {
+            "url": "https://github.com/YewFence/YewSeal/releases/download/v0.1.0/yews-windows-amd64.zip",
+            "hash": "21865152138432D8D868D1BE666E82A93DAFFE85950B9D77B7C99673A29D639F"
+        }
+    },
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/YewFence/YewSeal/releases/download/v$version/yews-windows-amd64.zip"
+            }
+        }
     }
-  },
-  "bin": "yews-windows-amd64.exe"
 }
