@@ -16,5 +16,11 @@
                 "url": "https://github.com/YewFence/YewSeal/releases/download/v$version/yews-windows-amd64.zip"
             }
         }
-    }
+    },
+    "bin": [
+        [
+            "yews-windows-amd64.exe",
+            "yews"
+        ]
+    ]
 }
