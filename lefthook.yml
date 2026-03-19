@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    style-check:
+      glob: "**/*.{ps1,psm1,json,yml,yaml,md,txt,js}"
+      run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./bin/fix-style.ps1 -Fix 0 {staged_files}
+      fail_text: "Style check failed! Run: .\\bin\\fix-style.ps1  Then: git add . && git commit"
