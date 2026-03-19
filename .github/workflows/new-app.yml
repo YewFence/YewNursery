@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       repo_url:
-        description: 'GitHub Repository URL (e.g. https://github.com/owner/repo)'
+        description: "GitHub Repository URL (e.g. https://github.com/owner/repo)"
         required: true
         type: string
       create_shortcut:
-        description: 'Create Start Menu Shortcut'
+        description: "Create Start Menu Shortcut"
         required: false
         type: boolean
         default: false
