@@ -1,12 +1,12 @@
 {
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "一个用于管理秘密配置文件的 CLI 工具，调用 SOPS + Age 进行加密，支持多种配置格式（TOML/YAML/JSON/ENV/INI）",
     "homepage": "https://github.com/YewFence/YewSeal",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/YewFence/YewSeal/releases/download/v0.1.0/yews-windows-amd64.zip",
-            "hash": "21865152138432D8D868D1BE666E82A93DAFFE85950B9D77B7C99673A29D639F"
+            "url": "https://github.com/YewFence/YewSeal/releases/download/v0.2.0/yews-windows-amd64.zip",
+            "hash": "f7b07d33a2c54b9d31ac09d6e885b77098b6f7de48c64c4c0620f56bd9b19f44"
         }
     },
     "checkver": "github",
