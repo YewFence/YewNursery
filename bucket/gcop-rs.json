@@ -1,12 +1,12 @@
 {
-    "version": "0.13.9",
+    "version": "0.14.0",
     "description": "🤖 AI-powered Git commit message generator and code reviewer - Support Claude, OpenAI, Ollama",
     "homepage": "https://github.com/AptS-1547/gcop-rs",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/AptS-1547/gcop-rs/releases/download/v0.13.9/gcop-rs-v0.13.9-windows-amd64.exe",
-            "hash": "3abce70e0b64e9be57a2caee5ff6ec13a905584824e2e6e35b021206b4cda027"
+            "url": "https://github.com/AptS-1547/gcop-rs/releases/download/v0.14.0/gcop-rs-v0.14.0-windows-amd64.exe",
+            "hash": "6c70b1ec18a9d298222e8f6119d09772336aa4244ba981f640601346ee7e83c2"
         }
     },
     "checkver": "github",
