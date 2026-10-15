@@ -4,10 +4,6 @@
 
 叶云枫的个人 [Scoop](https://scoop.sh) Bucket，收录日常开发和使用的工具。
 
-## 如何使用这个 Bucket？
-
-配置步骤请参考原模板的 [使用说明](#使用模板的步骤)（如果你是从模板创建的）。
-
 ## 如何安装应用？
 
 添加 Bucket 并安装应用：
@@ -123,34 +119,18 @@ scoop install YewNursery/<app-name>
 | **formatjson** | `.\bin\formatjson.ps1` | 格式化 JSON 清单 (**提交前必跑**) |
 | **test** | `.\bin\test.ps1` | 运行完整的 Pester 测试套件 |
 | **fix-style** | `.\bin\fix-style.ps1` | 修复文件行尾空格和换行符 |
-| **setup-hooks** | `.\bin\setup-hooks.ps1` | 安装 Git Hooks (pre-commit) |
 | **auto-pr** | `.\bin\auto-pr.ps1` | (CI内部使用) 自动创建 PR |
 
 ### ⚙️ 开发环境配置 (Developer Setup)
 
-为了保证代码风格一致，建议安装 Git Hooks：
+项目使用 [lefthook](https://github.com/evilmartians/lefthook) 管理 Git Hooks，安装后执行：
 
 ```powershell
-.\bin\setup-hooks.ps1
+lefthook install
 ```
 
-这会在每次提交前自动运行代码风格检查。
+这会在每次提交前自动运行代码风格检查。如未安装 lefthook，可通过 scoop 安装：
 
-## 使用模板的步骤
-
-如果你想基于这个仓库创建自己的 Bucket：
-
-1. 使用 "Use this template" 按钮创建你自己的副本
-2. 启用 GitHub Actions（所有权限）：
-   - 进入 `Settings` → `Actions` → `General` → `Actions permissions`
-   - 选择 `Allow all actions and reusable workflows`
-   - 点击 `Save`
-3. 授予工作流写入权限：
-   - 进入 `Settings` → `Actions` → `General` → `Workflow permissions`
-   - 选择 `Read and write permissions`
-   - 点击 `Save`
-4. 在 `README.md` 中更新你的 Bucket 信息
-5. 在 `bin/auto-pr.ps1` 中替换占位符（`<username>/<bucketname>`）
-6. 复制 `bucket/app-name.json.template` 创建新的应用清单
-7. 提交并推送更改
-8. 如果希望在 `https://scoop.sh` 上被索引，为仓库添加 `scoop-bucket` 标签
+```powershell
+scoop install lefthook
+```
